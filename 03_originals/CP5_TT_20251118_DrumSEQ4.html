@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Tom's Beat Station</title>
+<style>
+  :root{
+    --bg:#0b0b0e;
+    --panel:#141418;
+    --panel-2:#1e1e24;
+    --line:#2a2a33;
+    --accent:#39ff14; /* fluogroen */
+    --accent-dim:#2ed60f;
+    --text:#e7ffe7;
+    --muted:#9fb09f;
+    --danger:#ff4d4d;
+    --shadow: 0 0 12px rgba(57,255,20,0.35), 0 0 32px rgba(57,255,20,0.12);
+  }
+
+  html,body{height:100%; background: radial-gradient(1200px 900px at 20% 0%, #0f1213 0%, var(--bg) 60%) fixed; color:var(--text); font-family: ui-sans-serif, system-ui, Segoe UI, Roboto, Helvetica, Arial, "Segoe UI Symbol";}
+  *{box-sizing:border-box}
+
+  .wrap{max-width:1100px; margin:32px auto; padding:20px;}
+  header{display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:18px}
+  h1{font-weight:700; letter-spacing:.5px; font-size:22px; margin:0; color:var(--text); text-shadow: 0 0 12px rgba(57,255,20,.25);}
+  .brand-dot{width:10px;height:10px;border-radius:50%; background:var(--accent); box-shadow:0 0 10px var(--accent); display:inline-block; margin-left:8px; vertical-align:middle}
+
+  .top{
+    display:grid; gap:14px; grid-template-columns: 1fr 1fr; margin-bottom:16px;
+  }
+  .panel{
+    background:linear-gradient(180deg,var(--panel), var(--panel-2));
+    border:1px solid #22262a; border-radius:12px; padding:14px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02), 0 12px 28px rgba(0,0,0,.45);
+  }
+  .controls{display:grid; gap:12px; grid-template-columns: repeat(6,minmax(0,1fr)); align-items:center}
+  .control{display:flex; flex-direction:column; gap:6px}
+  .control label{font-size:12px; color:var(--muted)}
+  input[type=range]{width:100%}
+  input[type=range]{
+    -webkit-appearance:none; background:transparent; height:24px;
+  }
+  input[type=range]::-webkit-slider-runnable-track{
+    height:6px; background: linear-gradient(90deg, #0d150f, #1b2b1c); border-radius:6px; border:1px solid #233125;
+  }
+  input[type=range]::-moz-range-track{
+    height:6px; background: linear-gradient(90deg, #0d150f, #1b2b1c); border-radius:6px; border:1px solid #233125;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:16px; height:16px; border-radius:50%;
+    background: radial-gradient(circle at 30% 30%, #caffc2, var(--accent) 60%, #1f4717 100%);
+    margin-top:-5px; box-shadow: var(--shadow);
+    border:1px solid #1b3d17;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:16px; height:16px; border-radius:50%;
+    background: radial-gradient(circle at 30% 30%, #caffc2, var(--accent) 60%, #1f4717 100%);
+    box-shadow: var(--shadow);
+    border:1px solid #1b3d17;
+  }
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center;
+    padding:10px 14px; border-radius:10px; border:1px solid #1f2a1f;
+    color:var(--text); background:linear-gradient(180deg,#122012,#0f170f);
+    cursor:pointer; user-select:none; gap:8px;
+    box-shadow: inset 0 0 0 1px rgba(57,255,20,.12), 0 6px 16px rgba(0,0,0,.5);
+    transition: all .12s ease;
+  }
+  .btn:hover{transform:translateY(-1px); box-shadow: var(--shadow), 0 12px 24px rgba(0,0,0,.6)}
+  .btn.primary{background:linear-gradient(180deg,#173217,#112411); border-color:#214021}
+  .btn.danger{background:linear-gradient(180deg,#261616,#1b1010); border-color:#3a1919}
+  .indicator{font-size:12px; color:var(--muted)}
+
+  .meters{display:grid; grid-template-columns:1fr; gap:10px}
+  canvas#vu{width:100%; height:70px; background:linear-gradient(180deg,#0d0f11,#0c0c0f);
+    border-radius:10px; border:1px solid #20242a}
+
+  /* Sequencer grid */
+  .seq{margin-top:18px; display:grid; gap:12px}
+  .row{display:grid; gap:10px; grid-template-columns: 190px 1fr}
+  .chan{
+    display:grid; grid-template-columns:1fr 1fr; gap:8px; align-items:center
+  }
+  .chan .title{font-weight:600; letter-spacing:.3px}
+  .chan select, .chan .btn{width:100%}
+  .chan .title small{display:block; font-weight:400; color:var(--muted)}
+
+  .grid{
+    display:grid; gap:6px; grid-template-columns: repeat(16, 1fr);
+    background:linear-gradient(180deg,#101216,#0f0f13);
+    padding:10px; border-radius:12px; border:1px solid #23252b;
+  }
+
+  .cell{
+    background: #0f1214;
+    border:1px solid #1e2228; border-radius:8px; padding:6px;
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    transition: transform .06s ease, box-shadow .06s ease, border-color .06s ease;
+  }
+  .cell.active{
+    border-color:#2b4d2b; box-shadow: 0 0 0 1px rgba(57,255,20,.1), inset 0 0 0 1px rgba(57,255,20,.08), var(--shadow);
+  }
+  .step-index{font-size:10px; color:#7f8c7f}
+  .vel{
+    width:100%; height:20px;
+    -webkit-appearance:none; background:transparent;
+  }
+  .vel::-webkit-slider-runnable-track{
+    height:6px; border-radius:6px;
+    background: linear-gradient(90deg, #1a2420, #213d28);
+    border:1px solid #2a3b2d;
+  }
+  .vel::-webkit-slider-thumb{
+    -webkit-appearance:none; width:12px; height:12px; border-radius:50%;
+    background: radial-gradient(circle at 30% 30%, #e8ffe3, var(--accent) 60%, #1f4717 100%);
+    margin-top:-4px; box-shadow: var(--shadow);
+    border:1px solid #1b3d17;
+  }
+  .now{ outline:2px solid var(--accent); box-shadow: var(--shadow) !important; }
+
+  footer{margin-top:22px; display:flex; align-items:center; justify-content:space-between; color:var(--muted)}
+  a, a:visited{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Tom's Beat Station<span class="brand-dot"></span></h1>
+    <div class="indicator" id="syncNote">Gereed</div>
+  </header>
+
+  <section class="top">
+    <div class="panel">
+      <div class="controls">
+        <div class="control">
+          <label for="tempo">Tempo (BPM)</label>
+          <input id="tempo" type="range" min="40" max="220" step="1" value="120">
+          <div><span id="tempoVal">120</span> BPM</div>
+        </div>
+        <div class="control">
+          <label>Nootlengte (decay)</label>
+          <input id="decay" type="range" min="0.03" max="1.5" step="0.01" value="0.25">
+          <div><span id="decayVal">0.25</span> s</div>
+        </div>
+        <div class="control">
+          <label>Master volume</label>
+          <input id="masterVol" type="range" min="0" max="1.2" step="0.01" value="0.9">
+        </div>
+        <div class="control">
+          <label>Filter type</label>
+          <select id="filterType">
+            <option value="lowpass">Low‑pass</option>
+            <option value="highpass">High‑pass</option>
+            <option value="bandpass">Band‑pass</option>
+          </select>
+        </div>
+        <div class="control">
+          <label>Filter freq</label>
+          <input id="filterFreq" type="range" min="200" max="12000" step="1" value="4000">
+          <div><span id="filterFreqVal">4000</span> Hz</div>
+        </div>
+        <div class="control">
+          <label>Filter Q</label>
+          <input id="filterQ" type="range" min="0.1" max="24" step="0.1" value="1.0">
+          <div>Q=<span id="filterQVal">1.0</span></div>
+        </div>
+      </div>
+      <div style="margin-top:12px; display:flex; gap:10px; align-items:center">
+        <button class="btn primary" id="startStop">▶ Start</button>
+        <button class="btn" id="rndAll">🎲 Randomize alle kanalen</button>
+        <button class="btn danger" id="clearAll">✖ Clear alle steps</button>
+        <div class="indicator" id="status">Gestopt</div>
+        <div class="indicator" id="countdown"></div>
+      </div>
+    </div>
+
+    <div class="panel meters">
+      <label style="color:var(--muted); font-size:12px; margin-bottom:6px">Stereo VU‑meter</label>
+      <canvas id="vu" width="800" height="140"></canvas>
+    </div>
+  </section>
+
+  <section class="panel seq" id="seq"></section>
+
+  <footer>
+    <div>⏱ Start wordt gesynchroniseerd op <strong>seconden % 4 == 0</strong>.</div>
+    <div>Spatie = Start/Stop • Dubbelklik op een step zet velocity snel op 0/1</div>
+  </footer>
+</div>
+
+<script>
+(() => {
+  // ---------- Audio setup ----------
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  let ctx = null;
+
+  const state = {
+    isPlaying:false,
+    currentStep:0,
+    nextNoteTime:0,
+    tempo:120,
+    decay:0.25,
+    lookahead:25/1000,            // timer interval in s
+    scheduleAheadTime:0.12,       // hoeveel vooruit plannen
+    timerId:null,
+    channels:3,
+    steps:16,
+    pattern:[],                   // [ch][step] -> velocity 0..1
+    chanType:[],                  // 'kick' | 'snare' | 'hihat'
+    chanGain:[],                  // GainNodes per kanaal
+  };
+
+  // Create UI grid
+  const seqEl = document.getElementById('seq');
+  const channelNames = ['Kanaal A','Kanaal B','Kanaal C'];
+  function buildGrid(){
+    for(let ch=0; ch<state.channels; ch++){
+      state.pattern[ch] = new Array(state.steps).fill(0);
+      const row = document.createElement('div');
+      row.className = 'row';
+
+      const chPanel = document.createElement('div');
+      chPanel.className = 'chan';
+
+      const title = document.createElement('div');
+      title.className = 'title';
+      title.innerHTML = `${channelNames[ch]}<small>klank / volume / tools</small>`;
+      chPanel.appendChild(title);
+
+      const typeSel = document.createElement('select');
+      ['kick','snare','hihat'].forEach(t=>{
+        const o = document.createElement('option');
+        o.value=t; o.textContent=t.charAt(0).toUpperCase()+t.slice(1);
+        typeSel.appendChild(o);
+      });
+      typeSel.addEventListener('change', e => state.chanType[ch] = e.target.value);
+      state.chanType[ch] = 'kick';
+      chPanel.appendChild(typeSel);
+
+      const volLab = document.createElement('div'); volLab.style.fontSize='12px'; volLab.style.color='var(--muted)'; volLab.textContent='Volume';
+      const vol = document.createElement('input'); vol.type='range'; vol.min=0; vol.max=1.5; vol.step=0.01; vol.value=1.0;
+      vol.addEventListener('input', e => { if(state.chanGain[ch]) state.chanGain[ch].gain.value = +e.target.value; });
+      const volBox = document.createElement('div'); volBox.appendChild(volLab); volBox.appendChild(vol); chPanel.appendChild(volBox);
+
+      const rnd = document.createElement('button'); rnd.className='btn'; rnd.textContent='🎲 Random';
+      rnd.addEventListener('click', ()=> randomizeChannel(ch));
+      chPanel.appendChild(rnd);
+
+      const clr = document.createElement('button'); clr.className='btn danger'; clr.textContent='✖ Clear';
+      clr.addEventListener('click', ()=> clearChannel(ch));
+      chPanel.appendChild(clr);
+
+      row.appendChild(chPanel);
+
+      const grid = document.createElement('div'); grid.className='grid';
+      for(let s=0; s<state.steps; s++){
+        const cell = document.createElement('div'); cell.className='cell';
+        if((s%4)==0) cell.style.borderColor='#2a2f35';
+
+        const idx = document.createElement('div'); idx.className='step-index'; idx.textContent = s+1;
+        const vel = document.createElement('input');
+        vel.type='range'; vel.className='vel'; vel.min=0; vel.max=1; vel.step=0.01; vel.value=0;
+
+        function reflect(){
+          const v = +vel.value;
+          state.pattern[ch][s] = v;
+          cell.classList.toggle('active', v>0);
+        }
+        vel.addEventListener('input', reflect);
+        vel.addEventListener('change', reflect);
+        cell.addEventListener('dblclick', () => { vel.value = ( +vel.value>0 ? 0 : 1 ); vel.dispatchEvent(new Event('input')); });
+
+        cell.appendChild(idx);
+        cell.appendChild(vel);
+        grid.appendChild(cell);
+      }
+      row.appendChild(grid);
+      seqEl.appendChild(row);
+    }
+  }
+  buildGrid();
+
+  // ---------- Instrument synthesis ----------
+  // Utility noise buffer
+  function makeNoiseBuffer(){
+    const buffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for(let i=0;i<data.length;i++) data[i] = Math.random()*2-1;
+    return buffer;
+  }
+  let noiseBuf = null;
+
+  function playKick(time, velocity, decay, out){
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(140, time);
+    osc.frequency.exponentialRampToValueAtTime(45, time + Math.max(0.03, decay*0.9));
+    gain.gain.setValueAtTime(velocity, time);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + Math.max(0.04, decay));
+    osc.connect(gain).connect(out);
+    osc.start(time);
+    osc.stop(time + decay + 0.1);
+  }
+
+  function playSnare(time, velocity, decay, out){
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuf;
+    const nfilter = ctx.createBiquadFilter();
+    nfilter.type = 'bandpass'; nfilter.frequency.value = 1800; nfilter.Q.value = 0.7;
+
+    const nhp = ctx.createBiquadFilter(); nhp.type='highpass'; nhp.frequency.value = 700;
+
+    const ng = ctx.createGain();
+    ng.gain.setValueAtTime(velocity*0.7, time);
+    ng.gain.exponentialRampToValueAtTime(0.0001, time + Math.max(0.06, decay*0.7));
+
+    noise.connect(nfilter).connect(nhp).connect(ng).connect(out);
+
+    // Body tone
+    const osc = ctx.createOscillator();
+    osc.type='triangle'; osc.frequency.setValueAtTime(170, time);
+    const og = ctx.createGain(); og.gain.setValueAtTime(velocity*0.15, time);
+    og.gain.exponentialRampToValueAtTime(0.0001, time + Math.max(0.03, decay*0.45));
+    osc.connect(og).connect(out);
+
+    noise.start(time); noise.stop(time + decay + 0.2);
+    osc.start(time);   osc.stop(time + decay + 0.2);
+  }
+
+  function playHiHat(time, velocity, decay, out){
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuf;
+    const hp = ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value = 6000;
+    const bp = ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value = 10000; bp.Q.value=0.8;
+    const g = ctx.createGain(); g.gain.setValueAtTime(velocity*0.5, time);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + Math.max(0.02, decay*0.35));
+    src.connect(hp).connect(bp).connect(g).connect(out);
+    src.start(time); src.stop(time + decay + 0.1);
+  }
+
+  function trigger(type, time, velocity, decay, out){
+    if(velocity<=0) return;
+    if(type==='kick') return playKick(time, velocity, decay, out);
+    if(type==='snare') return playSnare(time, velocity, decay, out);
+    return playHiHat(time, velocity, decay, out);
+  }
+
+  // ---------- Master / filter / meters ----------
+  let mixGain, filter, masterGain, splitter, analyserL, analyserR;
+
+  function setupAudioGraph(){
+    ctx = new AudioCtx();
+    noiseBuf = makeNoiseBuffer();
+
+    mixGain = ctx.createGain();
+    filter = ctx.createBiquadFilter();
+    filter.type = document.getElementById('filterType').value;
+    filter.frequency.value = +document.getElementById('filterFreq').value;
+    filter.Q.value = +document.getElementById('filterQ').value;
+
+    masterGain = ctx.createGain();
+    masterGain.gain.value = +document.getElementById('masterVol').value;
+
+    // per‑kanaal gain
+    for(let ch=0; ch<state.channels; ch++){
+      state.chanGain[ch] = ctx.createGain();
+      state.chanGain[ch].gain.value = 1.0;
+      state.chanGain[ch].connect(mixGain);
+    }
+
+    mixGain.connect(filter);
+    filter.connect(masterGain);
+    masterGain.connect(ctx.destination);
+
+    // Meters
+    splitter = ctx.createChannelSplitter(2);
+    analyserL = ctx.createAnalyser(); analyserR = ctx.createAnalyser();
+    analyserL.fftSize = 2048; analyserR.fftSize = 2048;
+    masterGain.connect(splitter);
+    splitter.connect(analyserL,0);
+    splitter.connect(analyserR,1);
+  }
+
+  // ---------- Scheduler ----------
+  function secondsPerBeat(){ return 60.0 / state.tempo; }
+  function stepDur(){ return secondsPerBeat() / 4.0; } // 16th notes
+
+  function scheduleStep(step, time){
+    for(let ch=0; ch<state.channels; ch++){
+      const vel = state.pattern[ch][step];
+      trigger(state.chanType[ch], time, vel, state.decay, state.chanGain[ch]);
+    }
+    // UI pulse
+    highlightStep(step);
+  }
+
+  function nextStep(){
+    state.nextNoteTime += stepDur();
+    state.currentStep = (state.currentStep + 1) % state.steps;
+  }
+
+  function schedulerTick(){
+    while (ctx.currentTime + state.scheduleAheadTime >= state.nextNoteTime){
+      scheduleStep(state.currentStep, state.nextNoteTime);
+      nextStep();
+    }
+  }
+
+  function startSchedulerAligned(){
+    // Sync start to next moment where (seconds % 4) === 0
+    const now = new Date();
+    const sec = now.getSeconds();
+    const ms  = now.getMilliseconds();
+    let add = (4 - (sec % 4)) % 4;
+    let target = new Date(now.getTime());
+    // Als we niet exact op de grens (ms=0) staan, ga naar de volgende veelvoud
+    target.setSeconds(sec + (add===0 && ms===0 ? 0 : add || 4), 0);
+    const delayMs = Math.max(0, target - now);
+    const cd = document.getElementById('countdown');
+    const syncNote = document.getElementById('syncNote');
+
+    cd.textContent = `Start binnen ${(delayMs/1000).toFixed(2)} s (sync 4s)`;
+    syncNote.textContent = `Synchronisatie: ${target.toLocaleTimeString()}.${String(target.getMilliseconds()).padStart(3,'0')}`;
+
+    setTimeout(()=>{
+      if(!state.isPlaying) return; // mocht user intussen gestopt hebben
+      state.currentStep = 0;
+      state.nextNoteTime = ctx.currentTime; // start meteen op boundary
+      state.timerId = setInterval(schedulerTick, state.lookahead*1000);
+      document.getElementById('status').textContent = 'Spelend (gesynchroniseerd)';
+      cd.textContent = '';
+    }, delayMs);
+  }
+
+  function start(){
+    if(!ctx){ setupAudioGraph(); }
+    ctx.resume();
+    state.isPlaying = true;
+    document.getElementById('status').textContent = 'Wachten op sync…';
+    document.getElementById('startStop').textContent = '⏹ Stop';
+    startSchedulerAligned();
+  }
+
+  function stop(){
+    state.isPlaying = false;
+    clearInterval(state.timerId);
+    state.timerId = null;
+    document.getElementById('status').textContent = 'Gestopt';
+    document.getElementById('startStop').textContent = '▶ Start';
+  }
+
+  // ---------- Meters drawing ----------
+  const vu = document.getElementById('vu');
+  const vuctx = vu.getContext('2d');
+
+  function rms(analyser){
+    const buf = new Uint8Array(analyser.fftSize);
+    analyser.getByteTimeDomainData(buf);
+    let sum=0;
+    for(let i=0;i<buf.length;i++){
+      const v = (buf[i]-128)/128;
+      sum += v*v;
+    }
+    return Math.sqrt(sum/buf.length); // 0..~1
+  }
+
+  function drawVU(){
+    requestAnimationFrame(drawVU);
+    if(!analyserL || !analyserR) {
+      vuctx.clearRect(0,0,vu.width,vu.height);
+      vuctx.fillStyle='#111418';
+      vuctx.fillRect(0,0,vu.width,vu.height);
+      vuctx.fillStyle='rgba(57,255,20,.1)';
+      vuctx.fillRect(20,25,vu.width-40,20);
+      vuctx.fillRect(20,95,vu.width-40,20);
+      vuctx.fillStyle='#7f8c7f'; vuctx.fillText('Wacht op audio…', 24, 20);
+      return;
+    }
+    const L = Math.min(1, rms(analyserL)*1.9);
+    const R = Math.min(1, rms(analyserR)*1.9);
+
+    vuctx.clearRect(0,0,vu.width,vu.height);
+    const pad = 24; const barW = vu.width-2*pad; const h=20;
+
+    function bar(y, val, label){
+      const grd = vuctx.createLinearGradient(pad,y,pad+barW,y);
+      grd.addColorStop(0,'#163116');
+      grd.addColorStop(val*0.9, '#1f4a1b');
+      grd.addColorStop(val, 'rgba(57,255,20,.95)');
+      grd.addColorStop(1,'#0e130f');
+
+      vuctx.fillStyle='#0e1210'; vuctx.fillRect(pad, y, barW, h);
+      vuctx.strokeStyle='#1f2a21'; vuctx.strokeRect(pad, y, barW, h);
+      vuctx.fillStyle=grd; vuctx.fillRect(pad, y, barW*val, h);
+      vuctx.shadowColor='rgba(57,255,20,.5)'; vuctx.shadowBlur=10;
+      vuctx.fillStyle='rgba(57,255,20,.15)'; vuctx.fillRect(pad, y, Math.max(0, barW*val-4), h);
+      vuctx.shadowBlur=0;
+
+      vuctx.fillStyle='#9fb09f'; vuctx.font='12px system-ui'; vuctx.fillText(`${label}`, pad, y-6);
+    }
+
+    bar(30, L, 'L');
+    bar(100, R, 'R');
+  }
+  drawVU();
+
+  // ---------- UI bindings ----------
+  const tempo = document.getElementById('tempo');
+  const tempoVal = document.getElementById('tempoVal');
+  tempo.addEventListener('input', e=>{ state.tempo=+e.target.value; tempoVal.textContent=state.tempo; });
+
+  const decay = document.getElementById('decay');
+  const decayVal = document.getElementById('decayVal');
+  decay.addEventListener('input', e=>{ state.decay=+e.target.value; decayVal.textContent=state.decay.toFixed(2); });
+
+  const masterVol = document.getElementById('masterVol');
+  masterVol.addEventListener('input', e=>{ if(masterGain) masterGain.gain.value = +e.target.value; });
+
+  const filterType = document.getElementById('filterType');
+  filterType.addEventListener('change', e=>{ if(filter) filter.type = e.target.value; });
+
+  const filterFreq = document.getElementById('filterFreq');
+  const filterFreqVal = document.getElementById('filterFreqVal');
+  filterFreq.addEventListener('input', e=>{ filter && (filter.frequency.value = +e.target.value); filterFreqVal.textContent = (+e.target.value).toFixed(0); });
+
+  const filterQ = document.getElementById('filterQ');
+  const filterQVal = document.getElementById('filterQVal');
+  filterQ.addEventListener('input', e=>{ filter && (filter.Q.value = +e.target.value); filterQVal.textContent = (+e.target.value).toFixed(1); });
+
+  const btn = document.getElementById('startStop');
+  btn.addEventListener('click', ()=> state.isPlaying ? stop() : start());
+  document.addEventListener('keydown', (e)=>{ if(e.code==='Space'){ e.preventDefault(); state.isPlaying ? stop() : start(); } });
+
+  // Random / Clear
+  function randomizeChannel(ch, density=0.5){
+    for(let s=0; s<state.steps; s++){
+      const val = (Math.random()<density) ? (0.4 + Math.random()*0.6) : 0;
+      state.pattern[ch][s] = val;
+      const row = seqEl.children[ch];
+      const slider = row.querySelectorAll('.grid .vel')[s];
+      slider.value = val.toFixed(2);
+      slider.dispatchEvent(new Event('input'));
+    }
+  }
+  function clearChannel(ch){
+    for(let s=0; s<state.steps; s++){
+      state.pattern[ch][s]=0;
+      const row = seqEl.children[ch];
+      const slider = row.querySelectorAll('.grid .vel')[s];
+      slider.value=0; slider.dispatchEvent(new Event('input'));
+    }
+  }
+  document.getElementById('rndAll').addEventListener('click', ()=>{
+    [0,1,2].forEach(ch=> randomizeChannel(ch, 0.45 + Math.random()*0.2));
+  });
+  document.getElementById('clearAll').addEventListener('click', ()=>{
+    [0,1,2].forEach(ch=> clearChannel(ch));
+  });
+
+  // Highlight playhead step
+  function highlightStep(step){
+    for(let ch=0; ch<state.channels; ch++){
+      const cells = seqEl.children[ch].querySelectorAll('.cell');
+      cells.forEach(c=> c.classList.remove('now'));
+      cells[step].classList.add('now');
+      // Remove after some ms so de highlight pulse kort is
+      setTimeout(()=> cells[step].classList.remove('now'), Math.max(30, stepDur()*1000 * 0.8));
+    }
+  }
+
+})();
+</script>
+</body>
+</html>

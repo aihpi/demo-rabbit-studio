@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Tom's Bass Station</title>
+<style>
+  :root{
+    --bg-deep:#0b0b0d;
+    --bg-dark:#121216;
+    --bg-panel:#1b1b22;
+    --fg:#e6e6ea;
+    --muted:#9a9aa2;
+    --orange:#ff5f00;      /* fluo-oranje */
+    --orange-glow:#ff8240; /* lichte gloed */
+    --accent:#ff5f00;
+    --border:#2a2a33;
+    --good:#3bd16f;
+    --bad:#ff3860;
+  }
+
+  /* Global look */
+  html,body{
+    height:100%;
+    background:linear-gradient(180deg,var(--bg-deep),var(--bg-dark));
+    color:var(--fg);
+    font-family: Inter, Segoe UI, Roboto, system-ui, -apple-system, sans-serif;
+    margin:0;
+  }
+  .wrap{
+    max-width:1100px;
+    margin:40px auto;
+    padding:24px;
+    background:linear-gradient(180deg,var(--bg-panel),#17171d);
+    border:1px solid var(--border);
+    border-radius:16px;
+    box-shadow: 0 30px 70px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,0.02);
+  }
+  header{
+    display:flex; align-items:baseline; gap:18px; margin-bottom:20px;
+  }
+  header h1{
+    font-weight:700; font-size:1.4rem; letter-spacing:.3px; margin:0;
+  }
+  .brand-dot{
+    width:9px; height:9px; border-radius:50%;
+    background:radial-gradient(circle at 35% 35%, var(--orange-glow) 0%, var(--orange) 40%, #b13a00 100%);
+    box-shadow:0 0 18px var(--orange);
+  }
+  .sub{ color:var(--muted); font-size:.92rem; }
+
+  /* Controls grid */
+  .controls{
+    display:grid; grid-template-columns: repeat(4, minmax(220px, 1fr));
+    gap:16px; margin-bottom:22px;
+  }
+  .panel{
+    background:#14141a;
+    border:1px solid var(--border);
+    border-radius:12px; padding:14px;
+    box-shadow: inset 0 0 12px rgba(255,95,0,.05);
+  }
+  .panel h3{
+    margin:0 0 10px; font-size:1rem; color:#fff;
+    text-transform:uppercase; letter-spacing:.08em; opacity:.9;
+  }
+  .row{ display:flex; align-items:center; gap:10px; margin:8px 0; }
+  .row label{ flex:1; color:var(--muted); font-size:.92rem; }
+  .row select, .row input[type="number"]{
+    flex:1; min-width:120px;
+    background:#0f0f13; border:1px solid var(--border); color:var(--fg);
+    padding:8px 10px; border-radius:8px;
+    box-shadow: 0 2px 7px rgba(0,0,0,.35);
+  }
+  .row .value{
+    width:60px; text-align:right; color:#cfcfd6; font-feature-settings:"tnum";
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Orange sliders with shady border */
+  input[type="range"]{
+    -webkit-appearance:none; width:100%; height:32px; background:transparent;
+  }
+  input[type="range"]::-webkit-slider-runnable-track{
+    height:8px; border-radius:999px; border:1px solid #2c2c32;
+    background:
+      linear-gradient(90deg, rgba(255,95,0,.35), rgba(255,95,0,.65)) left/var(--fill,0%) 100% no-repeat,
+      linear-gradient(90deg, #1f1f26, #17171d);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 2px 9px rgba(0,0,0,.45);
+  }
+  input[type="range"]::-moz-range-track{
+    height:8px; border-radius:999px; border:1px solid #2c2c32;
+    background: linear-gradient(90deg, rgba(255,95,0,.35), rgba(255,95,0,.65));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 2px 9px rgba(0,0,0,.45);
+  }
+  input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:18px; height:18px; border-radius:50%;
+    background: radial-gradient(circle at 30% 30%, #ffd0bf 0%, #ff8c63 20%, var(--orange) 60%, #c74300 100%);
+    border:1px solid rgba(255,255,255,.25);
+    margin-top:-5px;
+    box-shadow: 0 0 0 3px rgba(255,95,0,.25), 0 8px 16px rgba(255,95,0,.35);
+  }
+  input[type="range"]::-moz-range-thumb{
+    width:18px; height:18px; border-radius:50%;
+    background: radial-gradient(circle at 30% 30%, #ffd0bf 0%, #ff8c63 20%, var(--orange) 60%, #c74300 100%);
+    border:1px solid rgba(255,255,255,.25);
+    box-shadow: 0 0 0 3px rgba(255,95,0,.25), 0 8px 16px rgba(255,95,0,.35);
+  }
+
+  /* Transport */
+  .transport{ display:flex; gap:12px; align-items:center; margin:8px 0 18px; }
+  .btn{
+    appearance:none; border:none; cursor:pointer;
+    background:linear-gradient(180deg, #ff7b3a, var(--orange));
+    color:#1a0d07; font-weight:700; text-transform:uppercase; letter-spacing:.08em;
+    padding:10px 16px; border-radius:999px;
+    box-shadow: 0 8px 20px rgba(255,95,0,.35), inset 0 1px 0 rgba(255,255,255,.3);
+  }
+  .btn.secondary{
+    background:linear-gradient(180deg, #2b2b35, #1b1b22);
+    color:#fff; border:1px solid var(--border);
+    box-shadow: 0 8px 18px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08);
+  }
+  .status{ color:var(--muted); font-size:.9rem; margin-left:auto; }
+
+  /* Steps grid */
+  .steps{
+    display:grid; grid-template-columns: repeat(16, 1fr);
+    gap:10px; margin-top:10px;
+  }
+  .step{
+    background:#101015; border:1px solid #23232b; border-radius:10px; padding:8px;
+    box-shadow: inset 0 0 12px rgba(255,95,0,.03), 0 10px 20px rgba(0,0,0,.25);
+  }
+  .step h4{ margin:0 0 8px; font-size:.8rem; color:#d9d9df; text-align:center; }
+  .note-select{
+    width:100%; background:#0f0f13; border:1px solid var(--border); color:#eaeaf0;
+    padding:6px 8px; border-radius:8px; margin-bottom:8px; text-align:center;
+  }
+  .velocity{
+    writing-mode: bt-lr; -webkit-appearance: slider-vertical;
+    width:100%; height:80px;
+  }
+  .active{
+    outline:2px solid var(--orange); box-shadow: 0 0 12px rgba(255,95,0,.35) inset;
+  }
+
+  /* Meter */
+  .meter{
+    height:80px; background:#0b0b0f; border:1px solid #2a2a33; border-radius:10px;
+    overflow:hidden; position:relative;
+    box-shadow: inset 0 0 12px rgba(0,0,0,.5);
+  }
+  .meter .bar{
+    position:absolute; left:0; bottom:0; width:100%; height:0%;
+    background: linear-gradient(180deg, #1b1b22 0%, #ff5f00 85%, #ffd1c1 100%);
+    box-shadow: inset 0 0 12px rgba(255,95,0,.35), 0 -6px 18px rgba(255,95,0,.15);
+    transition: height .08s ease-out;
+  }
+  .meter .scale{ position:absolute; top:4px; right:8px; font-size:.8rem; color:#ffb499; }
+
+  footer{ margin-top:22px; color:var(--muted); font-size:.85rem; }
+  a{ color:#ffb499; text-decoration:none; }
+  a:hover{ text-decoration:underline; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <span class="brand-dot"></span>
+      <h1>Tom's Bass Station</h1>
+      <div class="sub">16‑steps · Web Audio · classy zwart &amp; fluo‑oranje</div>
+    </header>
+
+    <div class="transport">
+      <button id="startBtn" class="btn">Start (sync op ×4s)</button>
+      <button id="stopBtn" class="btn secondary">Stop</button>
+      <span id="status" class="status">Klaar • wacht op start</span>
+    </div>
+
+    <div class="controls">
+      <div class="panel">
+        <h3>Tempo &amp; volume</h3>
+        <div class="row">
+          <label for="tempo">Tempo (BPM)</label>
+          <input id="tempo" type="range" min="40" max="220" step="1" value="120" />
+          <div class="value" id="tempoVal">120</div>
+        </div>
+        <div class="row">
+          <label for="volume">Volume</label>
+          <input id="volume" type="range" min="0" max="1" step="0.001" value="0.8" />
+          <div class="value" id="volumeVal">0.80</div>
+        </div>
+        <div class="row">
+          <div class="meter"><div id="vu" class="bar"></div><div class="scale">VU</div></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Instrument</h3>
+        <div class="row">
+          <label for="wave">Sound</label>
+          <select id="wave">
+            <option value="sine">Sine (rond)</option>
+            <option value="square">Square (hol)</option>
+            <option value="sawtooth" selected>Saw (agressief)</option>
+          </select>
+        </div>
+        <div class="row">
+          <label for="scale">Scale</label>
+          <select id="scale">
+            <option value="minor" selected>Natural Minor</option>
+            <option value="major">Major</option>
+            <option value="pentatonic">Pentatonic Minor</option>
+            <option value="chromatic">Chromatic</option>
+          </select>
+        </div>
+        <div class="row">
+          <label for="octave">Octaaf</label>
+          <input id="octave" type="range" min="1" max="5" step="1" value="2" />
+          <div class="value" id="octaveVal">2</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Filter</h3>
+        <div class="row">
+          <label for="cutoff">Cutoff (Hz)</label>
+          <input id="cutoff" type="range" min="60" max="8000" step="1" value="900" />
+          <div class="value" id="cutoffVal">900</div>
+        </div>
+        <div class="row">
+          <label for="q">Resonantie (Q)</label>
+          <input id="q" type="range" min="0.1" max="20" step="0.1" value="1.0" />
+          <div class="value" id="qVal">1.0</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Envelope (ADSR)</h3>
+        <div class="row">
+          <label for="attack">Attack (ms)</label>
+          <input id="attack" type="range" min="0" max="1000" step="1" value="10" />
+          <div class="value" id="attackVal">10</div>
+        </div>
+        <div class="row">
+          <label for="decay">Decay (ms)</label>
+          <input id="decay" type="range" min="0" max="2000" step="1" value="120" />
+          <div class="value" id="decayVal">120</div>
+        </div>
+        <div class="row">
+          <label for="sustain">Sustain</label>
+          <input id="sustain" type="range" min="0" max="1" step="0.01" value="0.6" />
+          <div class="value" id="sustainVal">0.60</div>
+        </div>
+        <div class="row">
+          <label for="release">Release (ms)</label>
+          <input id="release" type="range" min="0" max="2000" step="1" value="180" />
+          <div class="value" id="releaseVal">180</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>16 Steps (noot &amp; velocity)</h3>
+      <div class="row" style="justify-content:space-between;">
+        <button id="randomizeBtn" class="btn">Randomize (noten + velocity)</button>
+        <button id="clearBtn" class="btn secondary">Clear</button>
+      </div>
+      <div id="steps" class="steps"></div>
+    </div>
+
+    <footer>
+      Tip: klik <strong>Start</strong> vlak voor een veelvoud van 4 seconden om meteen te syncen;
+      anders wacht het systeem automatisch tot <code>:00/:04/:08/...</code> voor de eerste tik.
+    </footer>
+  </div>
+
+<script>
+(() => {
+  // ---------- UI helpers ----------
+  const tempo = document.getElementById('tempo');
+  const tempoVal = document.getElementById('tempoVal');
+  const volume = document.getElementById('volume');
+  const volumeVal = document.getElementById('volumeVal');
+  const waveSel = document.getElementById('wave');
+  const scaleSel = document.getElementById('scale');
+  const octave = document.getElementById('octave');
+  const octaveVal = document.getElementById('octaveVal');
+  const cutoff = document.getElementById('cutoff');
+  const cutoffVal = document.getElementById('cutoffVal');
+  const q = document.getElementById('q');
+  const qVal = document.getElementById('qVal');
+  const attack = document.getElementById('attack');
+  const attackVal = document.getElementById('attackVal');
+  const decay = document.getElementById('decay');
+  const decayVal = document.getElementById('decayVal');
+  const sustain = document.getElementById('sustain');
+  const sustainVal = document.getElementById('sustainVal');
+  const release = document.getElementById('release');
+  const releaseVal = document.getElementById('releaseVal');
+  const statusEl = document.getElementById('status');
+  const vuBar = document.getElementById('vu');
+
+  // fill percentage visual on ranges
+  const ranges = [tempo, volume, octave, cutoff, q, attack, decay, sustain, release];
+  const setFill = (el) => {
+    const min = +el.min, max = +el.max, val = +el.value;
+    const pct = ((val - min) / (max - min)) * 100;
+    el.style.setProperty('--fill', pct + '%');
+  };
+  ranges.forEach(r => { setFill(r); r.addEventListener('input', () => setFill(r)); });
+
+  tempo.addEventListener('input', () => tempoVal.textContent = tempo.value);
+  volume.addEventListener('input', () => volumeVal.textContent = (+volume.value).toFixed(2));
+  octave.addEventListener('input', () => octaveVal.textContent = octave.value);
+  cutoff.addEventListener('input', () => cutoffVal.textContent = cutoff.value);
+  q.addEventListener('input', () => qVal.textContent = (+q.value).toFixed(1));
+  attack.addEventListener('input', () => attackVal.textContent = attack.value);
+  decay.addEventListener('input', () => decayVal.textContent = decay.value);
+  sustain.addEventListener('input', () => sustainVal.textContent = (+sustain.value).toFixed(2));
+  release.addEventListener('input', () => releaseVal.textContent = release.value);
+
+  // ---------- Steps UI ----------
+  const stepsEl = document.getElementById('steps');
+  const STEP_COUNT = 16;
+  const stepData = Array.from({ length: STEP_COUNT }, () => ({
+    degree: null, // null = rust
+    velocity: 0.7
+  }));
+
+  const makeStepEl = (i) => {
+    const el = document.createElement('div');
+    el.className = 'step';
+    el.innerHTML = `
+      <h4>${i+1}</h4>
+      <select class="note-select">
+        <option value="">— rust —</option>
+        <option value="0">0</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+        <option value="7">7</option>
+        <option value="8">8</option>
+      </select>
+      <input class="velocity" type="range" min="0" max="1" step="0.01" value="0.70" />
+    `;
+    const noteSel = el.querySelector('.note-select');
+    const vel = el.querySelector('.velocity');
+    noteSel.addEventListener('change', () => {
+      const v = noteSel.value === '' ? null : +noteSel.value;
+      stepData[i].degree = v;
+      el.classList.toggle('active', v !== null);
+    });
+    vel.addEventListener('input', () => stepData[i].velocity = +vel.value);
+    return el;
+  };
+  for (let i=0;i<STEP_COUNT;i++) stepsEl.appendChild(makeStepEl(i));
+
+  document.getElementById('randomizeBtn').addEventListener('click', () => {
+    const scaleLen = getScale().length;
+    for (let i=0;i<STEP_COUNT;i++){
+      // 75% kans op een noot, 25% rust
+      const useNote = Math.random() < 0.75;
+      stepData[i].degree = useNote ? Math.floor(Math.random()*Math.min(9, scaleLen+2)) : null;
+      stepData[i].velocity = +(0.35 + Math.random()*0.6).toFixed(2);
+      const el = stepsEl.children[i];
+      el.querySelector('.note-select').value = stepData[i].degree ?? '';
+      el.querySelector('.velocity').value = stepData[i].velocity;
+      el.classList.toggle('active', stepData[i].degree !== null);
+    }
+  });
+  document.getElementById('clearBtn').addEventListener('click', () => {
+    for (let i=0;i<STEP_COUNT;i++){
+      stepData[i].degree = null;
+      stepData[i].velocity = 0.7;
+      const el = stepsEl.children[i];
+      el.querySelector('.note-select').value = '';
+      el.querySelector('.velocity').value = 0.7;
+      el.classList.remove('active');
+    }
+  });
+
+  // ---------- Web Audio ----------
+  let audioCtx = null;
+  let masterGain = null;
+  let analyser = null;
+  let filter = null;
+
+  function initAudio(){
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = +volume.value;
+    filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = +cutoff.value;
+    filter.Q.value = +q.value;
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+
+    // Chain: instrument -> filter -> master -> analyser -> destination
+    filter.connect(masterGain);
+    masterGain.connect(analyser);
+    analyser.connect(audioCtx.destination);
+  }
+
+  // VU meter
+  function startMeter(){
+    const buffer = new Uint8Array(analyser.fftSize);
+    function draw(){
+      if (!analyser) return;
+      analyser.getByteTimeDomainData(buffer);
+      // RMS
+      let sum = 0;
+      for(let i=0;i<buffer.length;i++){
+        const v = (buffer[i]-128)/128;
+        sum += v*v;
+      }
+      const rms = Math.sqrt(sum / buffer.length);
+      const pct = Math.min(100, Math.max(0, rms*140)); // visual scaling
+      vuBar.style.height = pct + '%';
+      requestAnimationFrame(draw);
+    }
+    draw();
+  }
+
+  // ---------- Sequencer scheduling ----------
+  let currentStep = 0;
+  let isRunning = false;
+  let nextNoteTime = 0;
+  const lookahead = 25;            // ms
+  const scheduleAheadTime = 0.12;  // s
+
+  function secondsPerStep(){
+    const spb = 60 / (+tempo.value);
+    return spb / 4; // 16th
+  }
+
+  function scheduler(){
+    while (nextNoteTime < audioCtx.currentTime + scheduleAheadTime){
+      scheduleStep(currentStep, nextNoteTime);
+      nextNote();
+    }
+    timerID = setTimeout(scheduler, lookahead);
+  }
+
+  function getScale(){
+    const map = {
+      major:      [0,2,4,5,7,9,11],
+      minor:      [0,2,3,5,7,8,10],
+      pentatonic: [0,3,5,7,10],
+      chromatic:  [0,1,2,3,4,5,6,7,8,9,10,11]
+    };
+    return map[scaleSel.value] || map.minor;
+  }
+
+  function degreeToFreq(degree){
+    if (degree == null) return null;
+    const scale = getScale();
+    const idx = Math.max(0, Math.min(degree, scale.length-1));
+    const semitone = scale[idx];
+    // Root = C (MIDI 12) + selected octave
+    const midiRoot = 12 + (12 * (+octave.value)); // C octave
+    const midi = midiRoot + semitone;
+    const freq = 440 * Math.pow(2, (midi - 69)/12);
+    return freq;
+  }
+
+  function scheduleStep(stepIndex, time){
+    const data = stepData[stepIndex];
+    const freq = degreeToFreq(data.degree);
+    const stepDur = secondsPerStep();
+    const noteDur = Math.max(0.03, stepDur * 0.9);
+
+    if (freq === null) return; // rust
+
+    // Build voice
+    const osc = audioCtx.createOscillator();
+    osc.type = waveSel.value;
+    osc.frequency.value = freq;
+
+    const amp = audioCtx.createGain();
+    const vel = data.velocity;
+
+    // Envelope (ADSR) in seconds
+    const A = (+attack.value)/1000;
+    const D = (+decay.value)/1000;
+    const S = (+sustain.value);
+    const R = (+release.value)/1000;
+
+    // Connect
+    osc.connect(amp);
+    amp.connect(filter);
+
+    // Filter parameters (live)
+    filter.frequency.setTargetAtTime(+cutoff.value, time, 0.01);
+    filter.Q.setTargetAtTime(+q.value, time, 0.01);
+
+    // Envelope scheduling
+    const t0 = time;
+    amp.gain.cancelScheduledValues(t0);
+    amp.gain.setValueAtTime(0.0001, t0);
+    amp.gain.linearRampToValueAtTime(vel, t0 + A);
+    amp.gain.linearRampToValueAtTime(vel * S, t0 + A + D);
+
+    const offTime = t0 + Math.min(noteDur, A + D + noteDur);
+    amp.gain.setValueAtTime(vel * S, offTime);
+    amp.gain.linearRampToValueAtTime(0.0001, offTime + R);
+
+    osc.start(t0);
+    osc.stop(offTime + R + 0.01);
+  }
+
+  function nextNote(){
+    const stepDur = secondsPerStep();
+    nextNoteTime += stepDur;
+    currentStep = (currentStep + 1) % STEP_COUNT;
+  }
+
+  let timerID = null;
+
+  // ---------- Transport ----------
+  function startSequencerSynced(){
+    if (!audioCtx) initAudio();
+    masterGain.gain.value = +volume.value;
+
+    const now = new Date();
+    const target = new Date(now.getTime());
+    const mod = now.getSeconds() % 4;
+    let addSeconds = (4 - mod) % 4; // 0 if already multiple of 4
+    target.setSeconds(now.getSeconds() + addSeconds);
+    target.setMilliseconds(0);
+    const waitMs = Math.max(0, target.getTime() - now.getTime());
+
+    if (waitMs > 10){
+      statusEl.textContent = `Wachten op sync (${String(target.getSeconds()).padStart(2,'0')}s)…`;
+    } else {
+      statusEl.textContent = `Start!`;
+    }
+
+    setTimeout(() => {
+      isRunning = true;
+      currentStep = 0;
+      nextNoteTime = audioCtx.currentTime + 0.01; // tiny head start
+      scheduler();
+      statusEl.textContent = `Loopt @ ${tempo.value} BPM • synced`;
+    }, waitMs);
+  }
+
+  function stopSequencer(){
+    if (!audioCtx) return;
+    isRunning = false;
+    if (timerID) clearTimeout(timerID);
+    statusEl.textContent = `Gestopt`;
+  }
+
+  // Live updates
+  tempo.addEventListener('input', () => {
+    // no need to resync; scheduler uses current tempo in nextNote()
+    statusEl.textContent = `Loopt @ ${tempo.value} BPM`;
+  });
+  volume.addEventListener('input', () => {
+    if (masterGain) masterGain.gain.value = +volume.value;
+  });
+  cutoff.addEventListener('input', () => {
+    if (filter) filter.frequency.value = +cutoff.value;
+  });
+  q.addEventListener('input', () => {
+    if (filter) filter.Q.value = +q.value;
+  });
+
+  document.getElementById('startBtn').addEventListener('click', startSequencerSynced);
+  document.getElementById('stopBtn').addEventListener('click', stopSequencer);
+
+  // Initialize meter on user gesture (after audioCtx creation)
+  document.getElementById('startBtn').addEventListener('click', () => {
+    setTimeout(() => startMeter(), 50);
+  });
+})();
+</script>
+</body>
+</html>

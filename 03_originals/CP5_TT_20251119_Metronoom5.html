@@ -1,0 +1,159 @@
+
+<!DOCTYPE html>
+<html lang='nl'>
+<head>
+<meta charset='UTF-8'>
+<title>Metronoom & Slot Machine</title>
+<style>
+    body {
+        background-color: #000;
+        color: #ff00ff;
+        font-family: Arial, sans-serif;
+        text-align: center;
+        padding: 20px;
+    }
+    h1 {
+        text-shadow: 0 0 10px #ff00ff;
+    }
+    .controls, .slot-machine {
+        background-color: #1a1a1a;
+        padding: 20px;
+        margin: 20px auto;
+        border-radius: 10px;
+        box-shadow: 0 0 15px #ff00ff;
+        width: 80%;
+    }
+    label {
+        display: block;
+        margin: 10px 0;
+    }
+    input[type=range] {
+        width: 80%;
+        accent-color: #39ff14; /* fluogroen */
+    }
+    .beat-indicator {
+        width: 50px;
+        height: 50px;
+        margin: 20px auto;
+        border-radius: 50%;
+        background-color: #333;
+        box-shadow: 0 0 20px #ff00ff;
+    }
+    .active {
+        background-color: #ff00ff;
+    }
+    .slot-display {
+        font-size: 3em;
+        margin: 20px;
+        text-shadow: 0 0 15px #ff00ff;
+    }
+    button {
+        background-color: #ff00ff;
+        color: #000;
+        font-size: 1.2em;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        box-shadow: 0 0 10px #ff00ff;
+    }
+    button:hover {
+        box-shadow: 0 0 20px #ff00ff;
+    }
+</style>
+</head>
+<body>
+<h1>Metronoom & Slot Machine</h1>
+<div class='controls'>
+    <label>Tempo (BPM): <input type='number' id='tempo' min='40' max='240' value='120'></label>
+    <label>Waveform:
+        <select id='waveform'>
+            <option value='sine'>Sine</option>
+            <option value='sawtooth'>Saw</option>
+            <option value='square'>Square</option>
+        </select>
+    </label>
+    <label>Filter Frequency: <input type='range' id='filter' min='100' max='10000' value='1000'></label>
+    <label>Nootlengte (ms): <input type='range' id='noteLength' min='1' max='40' value='10'></label>
+    <label>Octaaf:
+        <select id='octave'>
+            <option value='2'>2</option>
+            <option value='3'>3</option>
+            <option value='4'>4</option>
+            <option value='5'>5</option>
+            <option value='6'>6</option>
+        </select>
+    </label>
+    <label>Volume: <input type='range' id='volume' min='0' max='1' step='0.01' value='0.5'></label>
+    <button id='startStop'>Start</button>
+    <div class='beat-indicator' id='indicator'></div>
+</div>
+<div class='slot-machine'>
+    <h2>Slot Machine</h2>
+    <label>Min: <input type='number' id='minVal' value='1'></label>
+    <label>Max: <input type='number' id='maxVal' value='100'></label>
+    <div class='slot-display' id='slotDisplay'>---</div>
+    <button id='spin'>Spin</button>
+</div>
+<script>
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let isPlaying = false;
+let intervalId;
+const indicator = document.getElementById('indicator');
+
+function playClick() {
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+
+    osc.type = document.getElementById('waveform').value;
+    const octave = parseInt(document.getElementById('octave').value);
+    osc.frequency.value = 220 * Math.pow(2, octave - 4);
+
+    filter.type = 'lowpass';
+    filter.frequency.value = document.getElementById('filter').value;
+
+    gainNode.gain.value = document.getElementById('volume').value;
+
+    osc.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    osc.start();
+    setTimeout(() => osc.stop(), document.getElementById('noteLength').value);
+}
+
+document.getElementById('startStop').addEventListener('click', () => {
+    if (!isPlaying) {
+        isPlaying = true;
+        document.getElementById('startStop').innerText = 'Stop';
+        const bpm = document.getElementById('tempo').value;
+        const interval = 60000 / bpm;
+        intervalId = setInterval(() => {
+            playClick();
+            indicator.classList.add('active');
+            setTimeout(() => indicator.classList.remove('active'), 100);
+        }, interval);
+    } else {
+        isPlaying = false;
+        document.getElementById('startStop').innerText = 'Start';
+        clearInterval(intervalId);
+    }
+});
+
+document.getElementById('spin').addEventListener('click', () => {
+    const min = parseInt(document.getElementById('minVal').value);
+    const max = parseInt(document.getElementById('maxVal').value);
+    const display = document.getElementById('slotDisplay');
+    let count = 0;
+    const spinInterval = setInterval(() => {
+        display.innerText = Math.floor(Math.random() * (max - min + 1)) + min;
+        count++;
+        if (count > 20) {
+            clearInterval(spinInterval);
+        }
+    }, 100);
+});
+</script>
+</body>
+</html>

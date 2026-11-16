@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RABBIT Synth Machine</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Michroma&family=Barlow:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: same noir hardware chassis as the Beat Machine — mounted metal plates in a 2-column rack, piano roll as the centre panel */
+:root{
+  color-scheme: dark;
+  --bg:#131415;
+  --floor-a:#1c1d1f;
+  --floor-b:#101112;
+  --chassis-raised:#3a3d42;
+  --chassis-recess:#1a1c1e;
+  --stroke:#585c62;
+  --stroke-bright:#82868d;
+  --ink:#f0f0ee;
+  --ink-dim:#b9bec5;
+  --ink-faint:#8f949c;
+  --accent:#d92e3a;
+  --amber:#e0ab52;
+  --accent-2:#8f1a28;
+  --font-display:'Michroma','Arial Narrow',sans-serif;
+  --font-body:'Barlow','Helvetica Neue',Arial,sans-serif;
+  --shadow:0 30px 60px -20px rgba(0,0,0,.75), 0 2px 0 rgba(255,255,255,.03) inset;
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important;}
+}
+*{box-sizing:border-box;}
+html{background:var(--bg);}
+body{
+  margin:0;
+  background:
+    radial-gradient(ellipse 900px 500px at 50% -10%, rgba(217,46,58,.10), transparent 60%),
+    repeating-linear-gradient(180deg, var(--floor-a) 0 2px, var(--floor-b) 2px 4px);
+  background-color:var(--bg);
+  color:var(--ink);
+  font-family:var(--font-body);
+  padding-block:28px 60px;
+  padding-inline:16px;
+}
+.stage{ max-width:1180px; margin:0 auto; }
+
+/* ================= CHASSIS ================= */
+.unit{
+  position:relative;
+  background:linear-gradient(180deg,#202226 0%,#101112 100%);
+  border:1px solid var(--stroke);
+  border-radius:16px;
+  box-shadow:var(--shadow);
+  padding:22px 24px 20px;
+  animation:power-on .8s ease-out both;
+  overflow:hidden;
+}
+@keyframes power-on{
+  0%{ opacity:0; filter:brightness(2.2); }
+  8%{ opacity:1; filter:brightness(.4); }
+  16%{ filter:brightness(2); }
+  24%{ filter:brightness(.6); }
+  40%{ filter:brightness(1.3); }
+  100%{ opacity:1; filter:brightness(1); }
+}
+.hazard{ position:absolute; top:0; left:0; right:0; height:4px; background:linear-gradient(90deg,transparent,var(--accent) 15%,var(--accent) 85%,transparent); opacity:.6; z-index:3; }
+.rivet{ position:absolute; width:9px; height:9px; border-radius:50%; background:radial-gradient(circle at 35% 35%,#cfd2d6,#5a5e64 65%,#1a1c1e); box-shadow:0 1px 1px rgba(0,0,0,.6); z-index:3; }
+.rivet.tl{ top:16px; left:14px; } .rivet.tr{ top:16px; right:14px; }
+.rivet.bl{ bottom:12px; left:14px; } .rivet.br{ bottom:12px; right:14px; }
+.unit::before{
+  content:''; position:absolute; inset:0;
+  background:repeating-linear-gradient(115deg, rgba(0,0,0,.45) 0 3px, transparent 3px 22px);
+  mix-blend-mode:multiply; opacity:.32; pointer-events:none; z-index:0;
+}
+.unit::after{
+  content:''; position:absolute; inset:0;
+  background:radial-gradient(ellipse 130% 95% at 50% 8%, transparent 32%, rgba(0,0,0,.55) 100%);
+  pointer-events:none; z-index:0;
+}
+
+/* ================= HEADER ================= */
+.head{
+  position:relative; z-index:1;
+  display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap;
+  gap:16px; padding:14px 4px 18px;
+  border-bottom:1px solid var(--stroke); margin-bottom:18px;
+}
+.brand{ display:flex; align-items:center; gap:14px; min-width:0; }
+.brand-text{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+.brand-mark{ height:54px; width:auto; flex:none; filter:drop-shadow(0 0 6px rgba(217,46,58,.4)); opacity:.92; }
+.brand .logo{
+  font-family:var(--font-display); font-size:clamp(20px,3.6vw,34px); line-height:1.1; letter-spacing:.02em;
+  color:var(--ink); text-shadow:2px 0 0 var(--accent), 0 0 24px rgba(217,46,58,.4);
+}
+.brand .sub{ font-size:11px; letter-spacing:.16em; color:var(--ink-dim); text-transform:uppercase; }
+.sync-box{
+  display:flex; align-items:center; gap:10px;
+  background:var(--chassis-recess); border:1px solid var(--stroke); border-radius:8px;
+  padding:8px 14px; text-align:right;
+}
+.sync-led{ width:11px; height:11px; border-radius:50%; background:#33363a; box-shadow:inset 0 0 3px rgba(0,0,0,.8); flex:none; }
+.sync-led.pending{ animation:sync-pending .5s steps(1) infinite; }
+@keyframes sync-pending{
+  0%,49%{ background:#33363a; box-shadow:inset 0 0 3px rgba(0,0,0,.8); }
+  50%,100%{ background:var(--accent); box-shadow:0 0 10px 2px var(--accent), 0 0 22px 6px rgba(217,46,58,.5); }
+}
+.sync-led.live{ background:var(--accent); box-shadow:0 0 10px 2px var(--accent), 0 0 22px 6px rgba(217,46,58,.5); }
+.sync-text{ display:flex; flex-direction:column; gap:1px; align-items:flex-end; }
+#syncStatus{ font-size:11px; letter-spacing:.08em; color:var(--amber); font-weight:700; }
+#syncCountdown{ font-size:10px; color:var(--ink-faint); font-variant-numeric:tabular-nums; min-height:12px; }
+.sync-note{ font-size:10px; color:var(--ink-faint); max-width:260px; line-height:1.4; letter-spacing:.02em; }
+
+/* ================= RACK PLATES ================= */
+.fx-rack{ position:relative; z-index:1; display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:0 0 14px; }
+.fx-unit, .seq-unit{
+  position:relative; min-width:0;
+  background:var(--chassis-raised);
+  border:1px solid var(--stroke); border-radius:10px;
+  padding:12px 14px;
+}
+.fx-unit{ display:flex; align-items:stretch; gap:14px; }
+.fx-unit::before, .seq-unit::before{
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background:
+    radial-gradient(circle at 35% 35%,#cfd2d6,#5a5e64 65%,#1a1c1e) 7px 7px/6px 6px no-repeat,
+    radial-gradient(circle at 35% 35%,#cfd2d6,#5a5e64 65%,#1a1c1e) calc(100% - 7px) 7px/6px 6px no-repeat,
+    radial-gradient(circle at 35% 35%,#cfd2d6,#5a5e64 65%,#1a1c1e) 7px calc(100% - 7px)/6px 6px no-repeat,
+    radial-gradient(circle at 35% 35%,#cfd2d6,#5a5e64 65%,#1a1c1e) calc(100% - 7px) calc(100% - 7px)/6px 6px no-repeat;
+}
+.fx-unit::after, .seq-unit::after{
+  content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.05) 0%, rgba(255,255,255,.015) 16%, transparent 34%),
+    linear-gradient(115deg, transparent 46%, rgba(255,255,255,.025) 50%, transparent 54%);
+}
+.fx-rack.lower .fx-unit{ background:#2e3034; }
+.fx-rack.lowest .fx-unit{ background:#25272a; }
+.fx-name-rail{
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:10px; flex:none; padding-right:12px; border-right:1px solid var(--stroke);
+}
+.fx-name{ font-family:var(--font-display); font-size:13px; letter-spacing:.08em; color:var(--ink); }
+.fx-name.vertical{ writing-mode:vertical-rl; transform:rotate(180deg); white-space:nowrap; }
+.fx-led{ width:8px; height:8px; border-radius:50%; background:var(--accent-2); box-shadow:0 0 6px var(--accent-2); opacity:.5; flex:none; }
+.fx-led.on{ background:var(--accent); box-shadow:0 0 8px var(--accent); opacity:1; }
+.fx-controls{ position:relative; z-index:1; display:flex; flex-wrap:wrap; gap:12px 14px; align-items:center; flex:1; min-width:0; }
+
+/* ================= KNOBS ================= */
+.knob-unit{ display:flex; flex-direction:column; align-items:center; gap:6px; width:80px; flex:none; }
+.knob-dial{
+  width:52px; height:52px; border-radius:50%;
+  background:
+    radial-gradient(circle at 32% 24%, rgba(255,255,255,.38), rgba(255,255,255,0) 24%),
+    radial-gradient(circle at 35% 30%, #4a4a4a, #0d0d0d 78%);
+  border:3px solid #000;
+  box-shadow:0 3px 0 rgba(0,0,0,.6), 0 6px 10px -2px rgba(0,0,0,.55), inset 0 2px 3px rgba(255,255,255,.14), inset 0 -7px 10px rgba(0,0,0,.55), 0 0 0 1px var(--stroke);
+  position:relative; cursor:grab; touch-action:none; flex:none;
+}
+.knob-dial.dragging{ cursor:grabbing; }
+.knob-dial:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; }
+.knob-ptr{
+  position:absolute; left:50%; top:8%; width:3px; height:42%; margin-left:-1.5px;
+  background:var(--accent); border-radius:2px; transform-origin:50% 100%;
+  box-shadow:0 0 4px var(--accent); pointer-events:none;
+}
+.knob-cap{ position:absolute; left:50%; top:50%; width:6px; height:6px; margin:-3px 0 0 -3px; border-radius:50%; background:#000; box-shadow:0 0 0 1px rgba(255,255,255,.08); pointer-events:none; }
+.knob-dial.small{ width:34px; height:34px; border-width:2px; }
+.knob-dial.small .knob-ptr{ width:2px; margin-left:-1px; }
+.knob-labels{ display:flex; flex-direction:column; align-items:center; gap:1px; }
+.knob-label{ font-size:10px; letter-spacing:.1em; color:var(--ink-faint); text-transform:uppercase; }
+.knob-value{ font-size:12px; color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.knob-unit.compact{ width:64px; gap:4px; }
+.knob-unit.compact .knob-value{ font-size:11px; }
+
+/* ================= BUTTONS ================= */
+.tbtn{
+  font-family:var(--font-display); font-size:14px;
+  width:38px; height:38px; padding:0; display:flex; align-items:center; justify-content:center;
+  border:1px solid var(--stroke-bright);
+  background:linear-gradient(180deg,#34373b,#1a1c1e); color:var(--ink);
+  border-radius:7px; cursor:pointer;
+  box-shadow:0 2px 0 rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.05);
+}
+.tbtn:active{ transform:translateY(1px); box-shadow:0 1px 0 rgba(0,0,0,.5); }
+.tbtn:disabled{ opacity:.35; cursor:default; }
+#startBtn{ color:#1a0d08; background:linear-gradient(180deg,#ff6a45,var(--accent)); border-color:var(--accent-2); }
+#startBtn:disabled{ color:var(--ink); background:linear-gradient(180deg,#34373b,#1a1c1e); border-color:var(--stroke-bright); }
+.stepbtn{
+  width:24px; height:22px; border-radius:5px; border:1px solid var(--stroke-bright);
+  background:linear-gradient(180deg,#34373b,#1a1c1e); color:var(--ink);
+  font-weight:700; font-size:13px; cursor:pointer; line-height:1; padding:0;
+}
+.stepbtn:active{ transform:translateY(1px); }
+button:focus-visible, select:focus-visible, canvas:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+.master-col{ display:flex; flex-direction:column; align-items:center; gap:6px; }
+.master-buttons{ display:flex; gap:8px; }
+.col-label{ font-size:10px; letter-spacing:.1em; color:var(--ink-faint); text-transform:uppercase; }
+.tempo-pair{ display:flex; align-items:center; gap:4px; }
+.tempo-fine{ display:flex; flex-direction:column; gap:4px; }
+
+/* VU */
+.vu-stereo{ display:flex; gap:6px; align-items:flex-start; }
+.vu-col{ display:flex; flex-direction:column; align-items:center; gap:3px; }
+.vu-col-label{ font-size:10px; letter-spacing:.08em; color:var(--ink-faint); }
+.vu-meter{
+  display:flex; flex-direction:column-reverse; gap:2px;
+  width:20px; height:76px; padding:5px 4px;
+  background:var(--chassis-recess); border:1px solid var(--stroke); border-radius:4px;
+}
+.vu-seg{ flex:1; width:100%; border-radius:1px; background:#15171a; box-shadow:inset 0 0 2px rgba(0,0,0,.8); }
+.vu-seg.on:nth-child(-n+6){ background:#4caf6d; box-shadow:0 0 4px #4caf6d; }
+.vu-seg.on:nth-child(n+7):nth-child(-n+8){ background:var(--amber); box-shadow:0 0 4px var(--amber); }
+.vu-seg.on:nth-child(n+9){ background:var(--accent); box-shadow:0 0 4px var(--accent); }
+
+/* Oscillator */
+.wave-grid{ display:grid; grid-template-columns:repeat(2, 56px); gap:6px; }
+.wave-btn{
+  height:40px; border-radius:6px; cursor:pointer;
+  border:1px solid var(--stroke-bright); background:var(--chassis-recess); color:var(--ink-faint);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+  font-family:var(--font-body); font-size:9px; font-weight:700; letter-spacing:.1em; padding:0;
+}
+.wave-btn svg{ width:26px; height:14px; }
+.wave-btn:hover{ color:var(--ink); border-color:var(--accent); }
+.wave-btn[aria-pressed="true"]{ background:var(--accent); color:#1a0d08; border-color:var(--accent); box-shadow:0 0 10px -2px var(--accent); }
+.oct-box{ display:flex; flex-direction:column; align-items:center; gap:6px; }
+.oct-row{ display:flex; align-items:center; gap:6px; }
+.lcd{
+  min-width:52px; height:30px; padding:0 8px; border-radius:5px;
+  background:#0c0a0a; border:1px solid #000; box-shadow:inset 0 2px 6px rgba(0,0,0,.8), 0 0 0 1px var(--stroke);
+  color:var(--accent); text-shadow:0 0 6px rgba(217,46,58,.7);
+  font-family:var(--font-display); font-size:12px; display:flex; align-items:center; justify-content:center;
+  font-variant-numeric:tabular-nums; white-space:nowrap;
+}
+.lcd.amber{ color:var(--amber); text-shadow:0 0 6px rgba(224,171,82,.6); }
+
+/* Filter */
+.filter-group{ display:flex; flex-direction:column; align-items:center; gap:8px; }
+.filter-group + .filter-group{ padding-left:14px; border-left:1px solid var(--stroke); }
+.filter-group-label{ font-size:10px; font-weight:700; letter-spacing:.1em; color:var(--accent); text-transform:uppercase; }
+.filter-group-knobs{ display:flex; gap:8px; }
+
+/* Envelope */
+.env-knobs{ display:flex; gap:6px; flex-wrap:wrap; }
+.env-scope{
+  flex:1 1 150px; min-width:140px; max-width:220px; height:84px;
+  background:#0c0a0a; border:1px solid #000; border-radius:6px;
+  box-shadow:inset 0 2px 8px rgba(0,0,0,.8), 0 0 0 1px var(--stroke);
+  display:block;
+}
+
+.fx-select{
+  width:100%; height:30px; background:var(--chassis-recess); border:1px solid var(--stroke-bright); color:var(--ink);
+  font-family:var(--font-body); font-size:12px; border-radius:5px; padding:0 6px;
+}
+.fx-param{ display:flex; flex-direction:column; gap:6px; width:84px; flex:none; }
+.fx-param-head{ display:flex; justify-content:space-between; align-items:baseline; }
+.fader-label{ font-size:10px; letter-spacing:.1em; color:var(--ink-faint); }
+.fader-value{ font-size:11px; color:var(--ink); font-variant-numeric:tabular-nums; }
+
+/* ================= PIANO ROLL ================= */
+.seq-unit{ z-index:1; display:flex; flex-direction:column; gap:10px; margin-bottom:14px; background:#35383d; }
+.seq-bar{ position:relative; z-index:1; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+.seq-title{ display:flex; align-items:center; gap:10px; }
+.seq-title .fx-name{ font-size:14px; }
+.seq-hint{ font-size:11px; color:var(--ink-faint); line-height:1.4; flex:1 1 260px; min-width:0; }
+.seq-hint b{ color:var(--ink-dim); font-weight:600; }
+.seq-tools{ display:flex; align-items:center; gap:10px; margin-left:auto; }
+.vel-new{ display:flex; align-items:center; gap:8px; }
+.vel-new .knob-labels{ align-items:flex-start; }
+.pill-btn{
+  height:34px; min-width:44px; border-radius:6px; padding:0 10px;
+  border:1px solid var(--stroke-bright); background:var(--chassis-recess); color:var(--ink-faint);
+  font-family:var(--font-body); font-size:10px; font-weight:700; letter-spacing:.06em; cursor:pointer;
+}
+.pill-btn:hover{ color:var(--accent); border-color:var(--accent); }
+.pill-btn.rnd:hover{ color:var(--amber); border-color:var(--amber); }
+#rollInfo{ display:block; width:230px; flex:none; line-height:28px; font-size:11px; text-align:left; overflow:hidden; text-overflow:ellipsis; contain:layout paint; }
+.roll-frame{ contain:layout; }
+
+.roll-frame{
+  position:relative; z-index:1;
+  background:#0f1011; border:1px solid #000; border-radius:8px;
+  box-shadow:inset 0 2px 10px rgba(0,0,0,.8), 0 0 0 1px var(--stroke);
+  overflow:hidden;
+}
+.roll-scroll{ max-height:400px; overflow-y:auto; overflow-x:hidden; scrollbar-color:var(--stroke) #0f1011; }
+.roll-frame canvas{ display:block; touch-action:none; }
+#rulerCv{ border-bottom:1px solid #000; }
+#velCv{ border-top:1px solid var(--stroke); }
+
+.legend{
+  position:relative; z-index:1; margin-top:16px; padding-top:12px; border-top:1px solid var(--stroke);
+  display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;
+  font-size:10px; color:var(--amber); letter-spacing:.05em;
+}
+
+@media (max-width:1000px){
+  .fx-rack{ grid-template-columns:1fr; }
+}
+@media (max-width:640px){
+  .unit{ padding:16px 12px 18px; }
+  .sync-note{ display:none; }
+  .roll-scroll{ max-height:none; }
+  .fx-unit{ gap:10px; padding:12px 10px; }
+  .fx-name-rail{ padding-right:8px; }
+  .filter-group + .filter-group{ padding-left:0; border-left:none; }
+  .seq-tools{ margin-left:0; }
+}
+</style>
+
+<div class="stage">
+  <div class="unit" id="unit">
+    <div class="hazard"></div>
+    <div class="rivet tl"></div><div class="rivet tr"></div>
+    <div class="rivet bl"></div><div class="rivet br"></div>
+
+    <div class="head">
+      <div class="brand">
+        <img class="brand-mark" src="data:image/png;base64,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" alt="">
+        <div class="brand-text">
+          <div class="logo">RABBIT Synth Machine</div>
+          <div class="sub">16-step polysynth - piano roll sequencer 1.0</div>
+        </div>
+      </div>
+      <div class="sync-box">
+        <div class="sync-led" id="syncLed"></div>
+        <div class="sync-text">
+          <span id="syncStatus">STOPPED</span>
+          <span id="syncCountdown"></span>
+          <span class="sync-note">Start locks to the next multiple of 4s on the system clock, then the pattern runs freely at your tempo, so other gear started on the same grid stays in phase.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- MASTER + OSC -->
+    <div class="fx-rack">
+      <div class="fx-unit">
+        <div class="fx-name-rail"><span class="fx-led" id="masterLed"></span><span class="fx-name vertical">MASTER</span></div>
+        <div class="fx-controls">
+          <div class="master-col">
+            <div class="vu-stereo" aria-hidden="true">
+              <div class="vu-col"><div class="vu-meter" id="vuL"></div><span class="vu-col-label">L</span></div>
+              <div class="vu-col"><div class="vu-meter" id="vuR"></div><span class="vu-col-label">R</span></div>
+            </div>
+          </div>
+          <div class="master-col">
+            <div class="master-buttons">
+              <button class="tbtn" id="startBtn" type="button" aria-label="Start">&#9654;</button>
+              <button class="tbtn" id="stopBtn" type="button" disabled aria-label="Stop">&#9632;</button>
+            </div>
+            <span class="col-label">Transport</span>
+          </div>
+          <div class="tempo-pair">
+            <div id="slotTempo"></div>
+            <div class="tempo-fine">
+              <button class="stepbtn" id="tempoUp" type="button" aria-label="Increase tempo">+</button>
+              <button class="stepbtn" id="tempoDown" type="button" aria-label="Decrease tempo">&minus;</button>
+            </div>
+          </div>
+          <div id="slotSwing"></div>
+          <div id="slotVolume"></div>
+        </div>
+      </div>
+
+      <div class="fx-unit">
+        <div class="fx-name-rail"><span class="fx-led on"></span><span class="fx-name vertical">OSC</span></div>
+        <div class="fx-controls">
+          <div class="master-col">
+            <div class="wave-grid" role="group" aria-label="Waveform">
+              <button type="button" class="wave-btn" data-wave="sine" aria-pressed="false"><svg viewBox="0 0 28 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 10 C6 0 10 0 14 10 S22 20 26 10"/></svg>SINE</button>
+              <button type="button" class="wave-btn" data-wave="sawtooth" aria-pressed="true"><svg viewBox="0 0 28 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M2 16 L14 4 V16 L26 4 V16"/></svg>SAW</button>
+              <button type="button" class="wave-btn" data-wave="triangle" aria-pressed="false"><svg viewBox="0 0 28 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M2 16 L8 4 L14 16 L20 4 L26 16"/></svg>TRI</button>
+              <button type="button" class="wave-btn" data-wave="square" aria-pressed="false"><svg viewBox="0 0 28 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M2 16 V4 H14 V16 H26 V4"/></svg>SQR</button>
+            </div>
+            <span class="col-label">Wave</span>
+          </div>
+          <div class="oct-box">
+            <div class="oct-row">
+              <button class="stepbtn" id="octDown" type="button" aria-label="Octave down">&minus;</button>
+              <div class="lcd" id="octLcd" aria-live="polite">0</div>
+              <button class="stepbtn" id="octUp" type="button" aria-label="Octave up">+</button>
+            </div>
+            <span class="col-label">Octave</span>
+          </div>
+          <div id="slotDetune"></div>
+          <div class="oct-box">
+            <div class="lcd amber" id="voiceLcd">0/16</div>
+            <span class="col-label">Voices</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PIANO ROLL -->
+    <div class="seq-unit">
+      <div class="seq-bar">
+        <div class="seq-title"><span class="fx-led on" id="seqLed"></span><span class="fx-name">PIANO ROLL</span></div>
+        <div class="seq-hint"><b>Double-click</b> to add a note (keep holding and drag right to lengthen it) and double-click a note to remove it. <b>Click</b> a note to select it, then drag its stem in the <b>VEL</b> lane to set its velocity. Drag a note to move it, drag its <b>right edge</b> to resize. Keys on the left preview the pitch.</div>
+        <div class="seq-tools">
+          <div class="lcd amber" id="rollInfo">DEMO PATTERN</div>
+          <button class="pill-btn rnd" id="rndBtn" type="button" aria-label="Randomize pattern">RND</button>
+          <button class="pill-btn" id="clrBtn" type="button" aria-label="Clear all notes">CLR</button>
+        </div>
+      </div>
+      <div class="roll-frame" id="rollFrame">
+        <canvas id="rulerCv" aria-hidden="true"></canvas>
+        <div class="roll-scroll" id="rollScroll">
+          <canvas id="rollCv" tabindex="0" aria-label="Piano roll. Delete removes the selected note, arrow keys move it."></canvas>
+        </div>
+        <canvas id="velCv" aria-label="Velocity lane"></canvas>
+      </div>
+    </div>
+
+    <!-- FILTER + ENVELOPE -->
+    <div class="fx-rack lower">
+      <div class="fx-unit">
+        <div class="fx-name-rail"><span class="fx-led on"></span><span class="fx-name vertical">FILTER</span></div>
+        <div class="fx-controls">
+          <div class="filter-group">
+            <span class="filter-group-label">LPF</span>
+            <div class="filter-group-knobs" id="slotLP"></div>
+          </div>
+          <div class="filter-group">
+            <span class="filter-group-label">HPF</span>
+            <div class="filter-group-knobs" id="slotHP"></div>
+          </div>
+        </div>
+      </div>
+      <div class="fx-unit">
+        <div class="fx-name-rail"><span class="fx-led on"></span><span class="fx-name vertical">ENVELOPE</span></div>
+        <div class="fx-controls">
+          <div class="env-knobs" id="slotEnv"></div>
+          <canvas class="env-scope" id="envCv" aria-label="Envelope shape"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- REVERB + DELAY -->
+    <div class="fx-rack lowest">
+      <div class="fx-unit">
+        <div class="fx-name-rail"><span class="fx-led on"></span><span class="fx-name vertical">REVERB</span></div>
+        <div class="fx-controls" id="slotReverb"></div>
+      </div>
+      <div class="fx-unit">
+        <div class="fx-name-rail"><span class="fx-led on"></span><span class="fx-name vertical">DELAY</span></div>
+        <div class="fx-controls" id="slotDelay">
+          <div class="fx-param">
+            <div class="fx-param-head"><label class="fader-label" for="delayDiv">TIME</label><span class="fader-value" id="delayMs">0ms</span></div>
+            <select class="fx-select" id="delayDiv"></select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span>THE SYNTH SYNDICATE &middot; CASE NO. 16</span>
+      <span>16&nbsp;VOICE POLY &middot; 16&nbsp;STEP &middot; ADSR &middot; LPF/HPF &middot; RVB + DLY</span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- constants ---------- */
+  const STEPS = 16, GRID_SEC = 4, LOOKAHEAD_MS = 25, SCHEDULE_AHEAD = 0.12, MAX_VOICES = 16;
+  const LOW = 48, HIGH = 83, ROWS = HIGH - LOW + 1;      // C3 .. B5 on the roll
+  const KEYW = 46, ROWH = 16, RULH = 20, VELH = 76;
+  const NN = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const ACC = '#d92e3a';
+  const WAVE_LEVEL = { sine:1, triangle:.9, sawtooth:.55, square:.5 };
+  const DELAY_DIVISIONS = [
+    { id:'1/32',  label:'1/32',   mult:0.125 },
+    { id:'1/16T', label:'1/16 T', mult:0.16667 },
+    { id:'1/16',  label:'1/16',   mult:0.25 },
+    { id:'1/8T',  label:'1/8 T',  mult:0.33333 },
+    { id:'1/16.', label:'1/16 .', mult:0.375 },
+    { id:'1/8',   label:'1/8',    mult:0.5 },
+    { id:'1/8.',  label:'1/8 .',  mult:0.75 },
+    { id:'1/4',   label:'1/4',    mult:1.0 },
+    { id:'1/4.',  label:'1/4 .',  mult:1.5 },
+    { id:'1/2',   label:'1/2',    mult:2.0 }
+  ];
+
+  const pc = p => ((p % 12) + 12) % 12;
+  const isBlack = p => [1,3,6,8,10].includes(pc(p));
+  const noteName = p => NN[pc(p)] + (Math.floor(p/12) - 1);
+  const clamp = (v,a,b) => Math.min(b, Math.max(a, v));
+  const lerp = (a,b,t) => a + (b-a)*t;
+  const dbToGain = db => Math.pow(10, db/20);
+  const cutToFreq = v => 20 * Math.pow(1000, v/100);
+  const toneToFreq = v => 300 * Math.pow(16000/300, v/100);
+  const resToQ = v => lerp(0.7, 18, v/100);
+  const expMap = (v,lo,hi) => lo * Math.pow(hi/lo, v/100);
+  const fmtFreq = f => f >= 1000 ? (f/1000).toFixed(1)+'kHz' : Math.round(f)+'Hz';
+  const fmtTime = s => s < 1 ? Math.round(s*1000)+'ms' : s.toFixed(2)+'s';
+  const fmtDb = v => (v>0?'+':'') + v.toFixed(1) + 'dB';
+  const mtof = m => 440 * Math.pow(2, (m-69)/12);
+
+  /* ---------- state ---------- */
+  const S = {
+    bpm:120, swing:0, volume:-4,
+    wave:'sawtooth', octave:0, detune:0,
+    env:{ a:10, d:62, s:55, r:60 },            // knob positions 0..100 (sustain = %)
+    lp:{ cut:78, res:22 }, hp:{ cut:8, res:0 },
+    reverb:{ decay:2.2, size:55, tone:55, mix:28 },
+    delay:{ division:'1/8.', feedback:35, tone:45, mix:18 },
+    defVel:100
+  };
+  const envA = () => expMap(S.env.a, 0.001, 2);
+  const envD = () => expMap(S.env.d, 0.005, 3);
+  const envS = () => S.env.s/100;
+  const envR = () => expMap(S.env.r, 0.01, 5);
+
+  let notes = [], nextId = 1, selected = null;
+  let isPlaying = false, currentStep = 0, nextStepTime = 0;
+  let anchorAudio = 0, anchorWall = 0, locked = false, lockWallTime = 0, schedTimer = null;
+  let visualQueue = [];
+  function addNote(pitch, start, len, vel){
+    const n = { id:nextId++, pitch, start, len, vel };
+    notes.push(n); return n;
+  }
+  function loadDemo(){
+    notes = [];
+    [[57,60,64,0],[53,57,60,4],[55,60,64,8],[55,59,62,12]].forEach(c => {
+      for (let i=0;i<3;i++) addNote(c[i], c[3], 4, 84);
+    });
+    [[76,0,2,112],[72,2,1,78],[69,3,1,70],[77,4,2,108],[72,6,2,82],[76,8,3,116],[74,11,1,72],[71,12,2,98],[74,14,2,86]]
+      .forEach(m => addNote(m[0], m[1], m[2], m[3]));
+  }
+  loadDemo();
+
+  /* ---------- audio ---------- */
+  let ctx = null, synthBus, hpF, lpF, masterGain, comp, anL, anR;
+  let reverbSend, reverbConv, reverbTone, delaySend, delayNode, delayTone, delayFb;
+  let voices = [];
+
+  function delayTimeSeconds(){
+    const d = DELAY_DIVISIONS.find(x => x.id === S.delay.division) || DELAY_DIVISIONS[5];
+    return (60/S.bpm) * d.mult;
+  }
+  function regenerateIR(){
+    if (!ctx) return;
+    const dur = S.reverb.decay, expo = lerp(7, 0.4, S.reverb.size/100), rate = ctx.sampleRate;
+    const len = Math.max(1, Math.floor(rate*dur));
+    const buf = ctx.createBuffer(2, len, rate);
+    for (let c=0;c<2;c++){
+      const d = buf.getChannelData(c);
+      for (let i=0;i<len;i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/len, expo);
+    }
+    reverbConv.buffer = buf;
+  }
+  function setParam(p, v){ if (ctx) p.setTargetAtTime(v, ctx.currentTime, 0.015); }
+
+  function getCtx(){
+    if (!ctx){
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      synthBus = ctx.createGain(); synthBus.gain.value = 1;
+      hpF = ctx.createBiquadFilter(); hpF.type = 'highpass';
+      hpF.frequency.value = cutToFreq(S.hp.cut); hpF.Q.value = resToQ(S.hp.res);
+      lpF = ctx.createBiquadFilter(); lpF.type = 'lowpass';
+      lpF.frequency.value = cutToFreq(S.lp.cut); lpF.Q.value = resToQ(S.lp.res);
+      masterGain = ctx.createGain(); masterGain.gain.value = dbToGain(S.volume);
+      comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -10; comp.knee.value = 6; comp.ratio.value = 8;
+      comp.attack.value = 0.003; comp.release.value = 0.2;
+
+      synthBus.connect(hpF); hpF.connect(lpF); lpF.connect(masterGain);
+      masterGain.connect(comp); comp.connect(ctx.destination);
+
+      // reverb (send from post-filter signal)
+      reverbSend = ctx.createGain(); reverbSend.gain.value = S.reverb.mix/100;
+      reverbConv = ctx.createConvolver();
+      reverbTone = ctx.createBiquadFilter(); reverbTone.type = 'lowpass'; reverbTone.frequency.value = toneToFreq(S.reverb.tone);
+      lpF.connect(reverbSend); reverbSend.connect(reverbConv); reverbConv.connect(reverbTone); reverbTone.connect(masterGain);
+      regenerateIR();
+
+      // delay
+      delaySend = ctx.createGain(); delaySend.gain.value = S.delay.mix/100;
+      delayNode = ctx.createDelay(4.0); delayNode.delayTime.value = delayTimeSeconds();
+      delayTone = ctx.createBiquadFilter(); delayTone.type = 'lowpass'; delayTone.frequency.value = toneToFreq(S.delay.tone);
+      delayFb = ctx.createGain(); delayFb.gain.value = (S.delay.feedback/100)*0.95;
+      lpF.connect(delaySend); delaySend.connect(delayNode); delayNode.connect(delayTone);
+      delayTone.connect(masterGain); delayTone.connect(delayFb); delayFb.connect(delayNode);
+
+      // meters
+      const split = ctx.createChannelSplitter(2);
+      comp.connect(split);
+      anL = ctx.createAnalyser(); anL.fftSize = 256;
+      anR = ctx.createAnalyser(); anR.fftSize = 256;
+      split.connect(anL, 0); split.connect(anR, 1);
+      startVU();
+      document.getElementById('masterLed').classList.add('on');
+    }
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+
+  /* one polyphonic voice: 2 detuned oscillators -> ADSR amp -> synth bus */
+  function playVoice(midi, time, dur, vel){
+    const live = voices.filter(v => v.start <= time && v.end > time).length;
+    if (live >= MAX_VOICES) return;
+    const A = Math.max(0.002, envA()), D = Math.max(0.005, envD()), Sus = envS(), R = Math.max(0.01, envR());
+    const peak = (vel/127) * 0.26 * (WAVE_LEVEL[S.wave] || 1);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, time);
+    if (dur <= A){
+      g.gain.linearRampToValueAtTime(peak * dur / A, time + dur);
+    } else {
+      g.gain.linearRampToValueAtTime(peak, time + A);
+      g.gain.setTargetAtTime(peak*Sus, time + A, D/3);
+      const vOff = peak * (Sus + (1-Sus) * Math.exp(-(dur - A)/(D/3)));
+      g.gain.setValueAtTime(vOff, time + dur);
+    }
+    g.gain.setTargetAtTime(0, time + dur, R/4);
+    const end = time + dur + R*1.4 + 0.05;
+    const freq = mtof(midi);
+    const o = ctx.createOscillator();
+    o.type = S.wave; o.frequency.value = freq; o.detune.value = S.detune;   // cents, up or down
+    o.connect(g);
+    o.start(time); o.stop(end);
+    g.connect(synthBus);
+    voices.push({ start:time, end });
+  }
+  function preview(pitch, vel){
+    getCtx();
+    playVoice(pitch + 12*S.octave, ctx.currentTime + 0.005, 0.22, vel || S.defVel);
+  }
+
+  /* ---------- VU ---------- */
+  let segL = [], segR = [], vuRaf = null;
+  (function buildVU(){
+    const L = document.getElementById('vuL'), R = document.getElementById('vuR');
+    for (let i=0;i<10;i++){
+      const a = document.createElement('span'); a.className = 'vu-seg'; L.appendChild(a); segL.push(a);
+      const b = document.createElement('span'); b.className = 'vu-seg'; R.appendChild(b); segR.push(b);
+    }
+  })();
+  function rms(an, data){
+    an.getByteTimeDomainData(data);
+    let s = 0;
+    for (let i=0;i<data.length;i++){ const v = (data[i]-128)/128; s += v*v; }
+    return Math.min(1, Math.sqrt(s/data.length)*3.2);
+  }
+  function startVU(){
+    if (vuRaf) return;
+    const dL = new Uint8Array(anL.fftSize), dR = new Uint8Array(anR.fftSize);
+    const tick = () => {
+      const l = Math.round(rms(anL, dL)*10), r = Math.round(rms(anR, dR)*10);
+      segL.forEach((s,i) => s.classList.toggle('on', i < l));
+      segR.forEach((s,i) => s.classList.toggle('on', i < r));
+      vuRaf = requestAnimationFrame(tick);
+    };
+    tick();
+  }
+
+  /* ---------- rotary knob ---------- */
+  function wireKnob(el, opts){
+    const min = opts.min, max = opts.max, step = opts.step || 1;
+    let value = opts.value;
+    const ptr = el.querySelector('.knob-ptr');
+    const PIX = 150;
+    function render(){
+      const t = (value - min)/(max - min);
+      ptr.style.transform = 'rotate(' + (-135 + t*270) + 'deg)';
+      el.setAttribute('aria-valuenow', value);
+    }
+    function setValue(v, fire){
+      v = clamp(v, min, max);
+      v = Math.round(Math.round(v/step)*step*1000)/1000;
+      const changed = v !== value;
+      value = v; render();
+      if (fire && changed && opts.onInput) opts.onInput(value);
+    }
+    render();
+    let dragging = false, startY = 0, startVal = 0;
+    const down = y => { dragging = true; startY = y; startVal = value; el.classList.add('dragging'); };
+    const move = y => { if (dragging) setValue(startVal + ((startY - y)/PIX)*(max-min), true); };
+    const up = () => { dragging = false; el.classList.remove('dragging'); };
+    el.addEventListener('mousedown', e => {
+      e.preventDefault(); el.focus(); down(e.clientY);
+      const mm = ev => move(ev.clientY);
+      const mu = () => { up(); document.removeEventListener('mousemove', mm); document.removeEventListener('mouseup', mu); };
+      document.addEventListener('mousemove', mm); document.addEventListener('mouseup', mu);
+    });
+    el.addEventListener('touchstart', e => {
+      if (e.touches.length !== 1) return;
+      down(e.touches[0].clientY);
+      const tm = ev => { move(ev.touches[0].clientY); ev.preventDefault(); };
+      const tu = () => { up(); document.removeEventListener('touchmove', tm); document.removeEventListener('touchend', tu); };
+      document.addEventListener('touchmove', tm, {passive:false}); document.addEventListener('touchend', tu);
+    }, {passive:true});
+    el.addEventListener('keydown', e => {
+      const big = e.shiftKey ? 5 : 1;
+      if (e.key === 'ArrowUp' || e.key === 'ArrowRight'){ setValue(value + step*big, true); e.preventDefault(); }
+      else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft'){ setValue(value - step*big, true); e.preventDefault(); }
+      else if (e.key === 'Home'){ setValue(min, true); e.preventDefault(); }
+      else if (e.key === 'End'){ setValue(max, true); e.preventDefault(); }
+    });
+    el.addEventListener('wheel', e => {
+      e.preventDefault();
+      setValue(value + (e.deltaY < 0 ? step : -step) * (e.shiftKey ? 5 : 1), true);
+    }, {passive:false});
+    if (opts.resetValue !== undefined){
+      el.addEventListener('dblclick', e => { e.preventDefault(); setValue(opts.resetValue, true); });
+    }
+    return { setValue: v => setValue(v, false), getValue: () => value };
+  }
+
+  function makeKnob(slot, cfg){
+    const unit = document.createElement('div');
+    unit.className = 'knob-unit' + (cfg.compact ? ' compact' : '');
+    const dial = document.createElement('div');
+    dial.className = 'knob-dial' + (cfg.small ? ' small' : '');
+    dial.tabIndex = 0; dial.setAttribute('role','slider');
+    dial.setAttribute('aria-label', cfg.aria || cfg.label);
+    dial.setAttribute('aria-valuemin', cfg.min); dial.setAttribute('aria-valuemax', cfg.max);
+    dial.innerHTML = '<div class="knob-ptr"></div><div class="knob-cap"></div>';
+    const labels = document.createElement('div'); labels.className = 'knob-labels';
+    const lab = document.createElement('span'); lab.className = 'knob-label'; lab.textContent = cfg.label;
+    const val = document.createElement('span'); val.className = 'knob-value'; val.textContent = cfg.fmt(cfg.value);
+    labels.appendChild(lab); labels.appendChild(val);
+    unit.appendChild(dial); unit.appendChild(labels);
+    const target = typeof slot === 'string' ? document.getElementById(slot) : slot;
+    if (cfg.replace){ target.replaceWith(unit); } else { target.appendChild(unit); }
+    const ctl = wireKnob(dial, {
+      min:cfg.min, max:cfg.max, step:cfg.step, value:cfg.value, resetValue:cfg.resetValue,
+      onInput: v => { cfg.onInput(v); val.textContent = cfg.fmt(v); }
+    });
+    return { set: v => { ctl.setValue(v); val.textContent = cfg.fmt(v); }, unit };
+  }
+
+  /* ---------- MASTER ---------- */
+  const tempoKnob = makeKnob('slotTempo', {
+    label:'Tempo', min:40, max:300, step:1, value:S.bpm, resetValue:120, replace:true,
+    fmt: v => v + ' BPM', onInput: v => setBpm(v, true)
+  });
+  function setBpm(v, fromKnob){
+    S.bpm = clamp(Math.round(v), 40, 300);
+    if (!fromKnob) tempoKnob.set(S.bpm);
+    if (delayNode) setParam(delayNode.delayTime, delayTimeSeconds());
+    refreshDelayMs();
+  }
+  document.getElementById('tempoUp').addEventListener('click', e => setBpm(S.bpm + (e.shiftKey?5:1)));
+  document.getElementById('tempoDown').addEventListener('click', e => setBpm(S.bpm - (e.shiftKey?5:1)));
+  makeKnob('slotSwing', {
+    label:'Swing', min:0, max:70, step:1, value:S.swing, resetValue:0, replace:true,
+    fmt: v => v + '%', onInput: v => { S.swing = v; }
+  });
+  makeKnob('slotVolume', {
+    label:'Volume', min:-30, max:6, step:0.5, value:S.volume, resetValue:-4, replace:true,
+    fmt: fmtDb, onInput: v => { S.volume = v; if (masterGain) setParam(masterGain.gain, dbToGain(v)); }
+  });
+
+  /* ---------- OSC ---------- */
+  const waveBtns = Array.from(document.querySelectorAll('.wave-btn'));
+  waveBtns.forEach(b => b.addEventListener('click', () => {
+    S.wave = b.dataset.wave;
+    waveBtns.forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
+    preview(69, 96);
+  }));
+  const octLcd = document.getElementById('octLcd');
+  function setOctave(o){
+    S.octave = clamp(o, -2, 2);
+    octLcd.textContent = (S.octave > 0 ? '+' : '') + S.octave;
+    drawRoll();
+  }
+  document.getElementById('octUp').addEventListener('click', () => setOctave(S.octave + 1));
+  document.getElementById('octDown').addEventListener('click', () => setOctave(S.octave - 1));
+  makeKnob('slotDetune', {
+    label:'Detune', min:-50, max:50, step:1, value:S.detune, resetValue:0, replace:true,
+    fmt: v => (v > 0 ? '+' : '') + v + 'ct', onInput: v => { S.detune = v; }
+  });
+  const voiceLcd = document.getElementById('voiceLcd');
+
+  /* ---------- FILTER ---------- */
+  makeKnob('slotLP', { label:'Cut', aria:'Low-pass cutoff', min:0, max:100, step:1, value:S.lp.cut, resetValue:100,
+    fmt: v => fmtFreq(cutToFreq(v)), onInput: v => { S.lp.cut = v; if (lpF) setParam(lpF.frequency, cutToFreq(v)); } });
+  makeKnob('slotLP', { label:'Res', aria:'Low-pass resonance', min:0, max:100, step:1, value:S.lp.res, resetValue:0,
+    fmt: v => v + '%', onInput: v => { S.lp.res = v; if (lpF) setParam(lpF.Q, resToQ(v)); } });
+  makeKnob('slotHP', { label:'Cut', aria:'High-pass cutoff', min:0, max:100, step:1, value:S.hp.cut, resetValue:0,
+    fmt: v => fmtFreq(cutToFreq(v)), onInput: v => { S.hp.cut = v; if (hpF) setParam(hpF.frequency, cutToFreq(v)); } });
+  makeKnob('slotHP', { label:'Res', aria:'High-pass resonance', min:0, max:100, step:1, value:S.hp.res, resetValue:0,
+    fmt: v => v + '%', onInput: v => { S.hp.res = v; if (hpF) setParam(hpF.Q, resToQ(v)); } });
+
+  /* ---------- ENVELOPE ---------- */
+  const envCv = document.getElementById('envCv');
+  makeKnob('slotEnv', { label:'Attack', min:0, max:100, step:1, value:S.env.a, compact:true,
+    fmt: v => fmtTime(expMap(v,0.001,2)), onInput: v => { S.env.a = v; drawEnv(); } });
+  makeKnob('slotEnv', { label:'Decay', min:0, max:100, step:1, value:S.env.d, compact:true,
+    fmt: v => fmtTime(expMap(v,0.005,3)), onInput: v => { S.env.d = v; drawEnv(); } });
+  makeKnob('slotEnv', { label:'Sustain', min:0, max:100, step:1, value:S.env.s, compact:true,
+    fmt: v => v + '%', onInput: v => { S.env.s = v; drawEnv(); } });
+  makeKnob('slotEnv', { label:'Release', min:0, max:100, step:1, value:S.env.r, compact:true,
+    fmt: v => fmtTime(expMap(v,0.01,5)), onInput: v => { S.env.r = v; drawEnv(); } });
+
+  function drawEnv(){
+    const dpr = window.devicePixelRatio || 1;
+    const w = envCv.clientWidth, h = envCv.clientHeight;
+    if (!w) return;
+    envCv.width = w*dpr; envCv.height = h*dpr;
+    const c = envCv.getContext('2d'); c.setTransform(dpr,0,0,dpr,0,0);
+    c.clearRect(0,0,w,h);
+    c.strokeStyle = 'rgba(255,255,255,.06)'; c.lineWidth = 1;
+    for (let i=1;i<4;i++){ const y = Math.round(h*i/4)+.5; c.beginPath(); c.moveTo(0,y); c.lineTo(w,y); c.stroke(); }
+    const pad = 8, top = 10, bot = h - 10;
+    const wa = Math.sqrt(envA()), wd = Math.sqrt(envD()), wr = Math.sqrt(envR()), ws = 0.45;
+    const k = (w - pad*2) / (wa + wd + ws + wr);
+    const x0 = pad, x1 = x0 + wa*k, x2 = x1 + wd*k, x3 = x2 + ws*k, x4 = x3 + wr*k;
+    const ys = bot - (bot - top) * envS();
+    c.beginPath();
+    c.moveTo(x0, bot); c.lineTo(x1, top);
+    c.quadraticCurveTo(x1 + (x2-x1)*0.15, ys, x2, ys);
+    c.lineTo(x3, ys);
+    c.quadraticCurveTo(x3 + (x4-x3)*0.12, bot, x4, bot);
+    c.lineTo(x0, bot);
+    c.fillStyle = 'rgba(217,46,58,.18)'; c.fill();
+    c.strokeStyle = ACC; c.lineWidth = 2; c.shadowColor = ACC; c.shadowBlur = 6;
+    c.beginPath();
+    c.moveTo(x0, bot); c.lineTo(x1, top);
+    c.quadraticCurveTo(x1 + (x2-x1)*0.15, ys, x2, ys);
+    c.lineTo(x3, ys);
+    c.quadraticCurveTo(x3 + (x4-x3)*0.12, bot, x4, bot);
+    c.stroke(); c.shadowBlur = 0;
+    c.fillStyle = '#8f949c'; c.font = '600 9px Barlow, sans-serif';
+    [['A',(x0+x1)/2],['D',(x1+x2)/2],['S',(x2+x3)/2],['R',(x3+x4)/2]].forEach(p => c.fillText(p[0], p[1]-3, h-1));
+  }
+
+  /* ---------- REVERB / DELAY ---------- */
+  makeKnob('slotReverb', { label:'Decay', min:0.2, max:6, step:0.05, value:S.reverb.decay, resetValue:2.2,
+    fmt: v => v.toFixed(2)+'s', onInput: v => { S.reverb.decay = v; regenerateIR(); } });
+  makeKnob('slotReverb', { label:'Size', min:0, max:100, step:1, value:S.reverb.size,
+    fmt: v => v + '%', onInput: v => { S.reverb.size = v; regenerateIR(); } });
+  makeKnob('slotReverb', { label:'Tone', min:0, max:100, step:1, value:S.reverb.tone,
+    fmt: v => fmtFreq(toneToFreq(v)), onInput: v => { S.reverb.tone = v; if (reverbTone) setParam(reverbTone.frequency, toneToFreq(v)); } });
+  makeKnob('slotReverb', { label:'Mix', min:0, max:100, step:1, value:S.reverb.mix, resetValue:0,
+    fmt: v => v + '%', onInput: v => { S.reverb.mix = v; if (reverbSend) setParam(reverbSend.gain, v/100); } });
+
+  const delaySel = document.getElementById('delayDiv'), delayMs = document.getElementById('delayMs');
+  DELAY_DIVISIONS.forEach(d => {
+    const o = document.createElement('option'); o.value = d.id; o.textContent = d.label;
+    if (d.id === S.delay.division) o.selected = true;
+    delaySel.appendChild(o);
+  });
+  function refreshDelayMs(){ delayMs.textContent = Math.round(delayTimeSeconds()*1000) + 'ms'; }
+  refreshDelayMs();
+  delaySel.addEventListener('change', () => {
+    S.delay.division = delaySel.value; refreshDelayMs();
+    if (delayNode) setParam(delayNode.delayTime, delayTimeSeconds());
+  });
+  makeKnob('slotDelay', { label:'Feedback', min:0, max:95, step:1, value:S.delay.feedback,
+    fmt: v => v + '%', onInput: v => { S.delay.feedback = v; if (delayFb) setParam(delayFb.gain, (v/100)*0.95); } });
+  makeKnob('slotDelay', { label:'Tone', min:0, max:100, step:1, value:S.delay.tone,
+    fmt: v => fmtFreq(toneToFreq(v)), onInput: v => { S.delay.tone = v; if (delayTone) setParam(delayTone.frequency, toneToFreq(v)); } });
+  makeKnob('slotDelay', { label:'Mix', min:0, max:100, step:1, value:S.delay.mix, resetValue:0,
+    fmt: v => v + '%', onInput: v => { S.delay.mix = v; if (delaySend) setParam(delaySend.gain, v/100); } });
+
+  /* ---------- PIANO ROLL ---------- */
+  const rollCv = document.getElementById('rollCv'), rulerCv = document.getElementById('rulerCv'), velCv = document.getElementById('velCv');
+  const rollScroll = document.getElementById('rollScroll'), rollFrame = document.getElementById('rollFrame');
+  const rollInfo = document.getElementById('rollInfo');
+  let rc, uc, vc, W = 0, colW = 0, playStep = -1, hoverPitch = null, keyFlash = null;
+  const H = ROWS * ROWH;
+
+
+  function setupCanvas(cv, w, h){
+    const dpr = window.devicePixelRatio || 1;
+    cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr);
+    cv.style.width = w + 'px'; cv.style.height = h + 'px';
+    const c = cv.getContext('2d'); c.setTransform(dpr,0,0,dpr,0,0);
+    return c;
+  }
+  function sizeRoll(){
+    W = rollScroll.clientWidth || rollFrame.clientWidth;
+    colW = (W - KEYW) / STEPS;
+    rc = setupCanvas(rollCv, W, H);
+    uc = setupCanvas(rulerCv, W, RULH);
+    vc = setupCanvas(velCv, W, VELH);
+    drawAll();
+  }
+  const isPlayingNote = n => isPlaying && playStep >= n.start && playStep < n.start + n.len;
+
+  function roundRect(c, x, y, w, h, r){
+    c.beginPath();
+    c.moveTo(x+r, y); c.lineTo(x+w-r, y); c.quadraticCurveTo(x+w, y, x+w, y+r);
+    c.lineTo(x+w, y+h-r); c.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+    c.lineTo(x+r, y+h); c.quadraticCurveTo(x, y+h, x, y+h-r);
+    c.lineTo(x, y+r); c.quadraticCurveTo(x, y, x+r, y); c.closePath();
+  }
+  function colLines(c, h){
+    for (let i=0;i<=STEPS;i++){
+      const x = Math.round(KEYW + i*colW) + .5;
+      c.strokeStyle = i % 4 === 0 ? 'rgba(255,255,255,.24)' : 'rgba(255,255,255,.07)';
+      c.lineWidth = 1; c.beginPath(); c.moveTo(x, 0); c.lineTo(x, h); c.stroke();
+    }
+  }
+  function drawRuler(){
+    const c = uc; c.clearRect(0,0,W,RULH);
+    c.fillStyle = '#151618'; c.fillRect(0,0,W,RULH);
+    c.fillStyle = '#8f949c'; c.font = '600 9px Barlow, sans-serif';
+    c.fillText('STEP', 8, 13);
+    for (let i=0;i<STEPS;i++){
+      const x = KEYW + i*colW;
+      if (i === playStep){ c.fillStyle = ACC; c.fillRect(x+1, RULH-4, colW-2, 3); }
+      c.fillStyle = i === playStep ? ACC : (i % 4 === 0 ? '#f0f0ee' : '#8f949c');
+      c.font = (i % 4 === 0 ? '700 10px' : '500 9px') + ' Barlow, sans-serif';
+      if (i % 4 === 0 || colW > 26) c.fillText(String(i+1), x + 4, 13);
+    }
+    c.strokeStyle = 'rgba(255,255,255,.24)';
+    for (let i=0;i<=STEPS;i+=4){ const x = Math.round(KEYW + i*colW)+.5; c.beginPath(); c.moveTo(x,0); c.lineTo(x,RULH); c.stroke(); }
+  }
+  function drawRoll(){
+    if (!rc) return;
+    const c = rc; c.clearRect(0,0,W,H);
+    for (let r=0;r<ROWS;r++){
+      const p = HIGH - r, y = r*ROWH, out = p + 12*S.octave;
+      c.fillStyle = isBlack(p) ? '#161719' : '#1f2124';
+      if (p === hoverPitch) c.fillStyle = isBlack(p) ? '#1f1a1b' : '#2a2224';
+      c.fillRect(KEYW, y, W-KEYW, ROWH);
+      // keyboard
+      const lit = p === keyFlash || p === hoverPitch;
+      if (isBlack(p)){
+        c.fillStyle = '#c9ccd0'; c.fillRect(0, y, KEYW-2, ROWH);
+        c.fillStyle = lit ? ACC : '#0c0d0e'; c.fillRect(0, y+1, KEYW*0.62, ROWH-2);
+      } else {
+        c.fillStyle = lit ? '#f3b4b8' : '#c9ccd0'; c.fillRect(0, y, KEYW-2, ROWH);
+        c.fillStyle = 'rgba(0,0,0,.35)'; c.fillRect(0, y+ROWH-1, KEYW-2, 1);
+      }
+      if (pc(p) === 0 || p === hoverPitch){
+        c.fillStyle = '#1a1c1e'; c.font = '700 9px Barlow, sans-serif';
+        c.fillText(noteName(out), KEYW - 26, y + ROWH - 4);
+      }
+      c.fillStyle = pc(p) === 0 ? 'rgba(255,255,255,.14)' : 'rgba(0,0,0,.4)';
+      c.fillRect(KEYW, y+ROWH-1, W-KEYW, 1);
+    }
+    if (playStep >= 0){ c.fillStyle = 'rgba(217,46,58,.10)'; c.fillRect(KEYW + playStep*colW, 0, colW, H); }
+    colLines(c, H);
+    c.fillStyle = '#000'; c.fillRect(KEYW-2, 0, 2, H);
+    // notes
+    notes.forEach(n => {
+      const r = HIGH - n.pitch; if (r < 0 || r >= ROWS) return;
+      const x = KEYW + n.start*colW + 1.5, y = r*ROWH + 1.5, w = n.len*colW - 3, h = ROWH - 3;
+      const t = n.vel/127, playing = isPlayingNote(n);
+      roundRect(c, x, y, w, h, 3);
+      c.fillStyle = playing ? '#ff6a72' : 'rgba(217,46,58,' + (0.32 + 0.68*t).toFixed(3) + ')';
+      if (playing){ c.shadowColor = ACC; c.shadowBlur = 10; }
+      c.fill(); c.shadowBlur = 0;
+      c.lineWidth = n === selected ? 1.6 : 1;
+      c.strokeStyle = n === selected ? '#f0f0ee' : 'rgba(0,0,0,.7)';
+      c.stroke();
+      // velocity strip inside the note
+      c.fillStyle = 'rgba(255,255,255,.35)';
+      c.fillRect(x + 3, y + h - 3, Math.max(2, (w - 8) * t), 1.5);
+      // resize grip
+      c.fillStyle = 'rgba(0,0,0,.45)';
+      c.fillRect(x + w - 4, y + 3, 1, h - 6);
+    });
+  }
+  function drawVel(){
+    const c = vc; c.clearRect(0,0,W,VELH);
+    c.fillStyle = '#131416'; c.fillRect(0,0,W,VELH);
+    c.fillStyle = '#1a1c1e'; c.fillRect(0,0,KEYW-2,VELH);
+    c.fillStyle = '#8f949c'; c.font = '700 9px Barlow, sans-serif'; c.fillText('VEL', 8, 14);
+    c.font = '500 8px Barlow, sans-serif'; c.fillText('127', 8, 26); c.fillText('1', 8, VELH-6);
+    c.strokeStyle = 'rgba(255,255,255,.05)';
+    [0.25,0.5,0.75].forEach(f => { const y = Math.round(velY(127*f))+.5; c.beginPath(); c.moveTo(KEYW,y); c.lineTo(W,y); c.stroke(); });
+    if (playStep >= 0){ c.fillStyle = 'rgba(217,46,58,.08)'; c.fillRect(KEYW + playStep*colW, 0, colW, VELH); }
+    colLines(c, VELH);
+    for (let i=0;i<STEPS;i++){
+      const ns = notes.filter(n => n.start === i).sort((a,b) => a.pitch - b.pitch);
+      ns.forEach((n, k) => {
+        const x = KEYW + i*colW + 6 + k*Math.min(5, (colW-12)/Math.max(1,ns.length));
+        const y = velY(n.vel);
+        const on = n === selected;
+        c.strokeStyle = on ? '#f0f0ee' : ACC; c.lineWidth = 2;
+        c.beginPath(); c.moveTo(x, VELH-3); c.lineTo(x, y); c.stroke();
+        c.beginPath(); c.arc(x, y, 3.5, 0, Math.PI*2);
+        c.fillStyle = on ? '#f0f0ee' : ACC; c.fill();
+        c.strokeStyle = '#000'; c.lineWidth = 1; c.stroke();
+      });
+    }
+  }
+  function velY(v){ return VELH - 5 - (v/127) * (VELH - 14); }
+  function drawAll(){ if (!rc) return; drawRuler(); drawRoll(); drawVel(); }
+
+  function posIn(cv, e){ const r = cv.getBoundingClientRect(); return { x:e.clientX - r.left, y:e.clientY - r.top }; }
+  function hit(x, y){
+    return {
+      col: clamp(Math.floor((x - KEYW)/colW), 0, STEPS-1),
+      pitch: HIGH - clamp(Math.floor(y/ROWH), 0, ROWS-1),
+      inGrid: x >= KEYW
+    };
+  }
+  function noteAt(p, col){
+    for (let i=notes.length-1;i>=0;i--){ const n = notes[i]; if (n.pitch === p && col >= n.start && col < n.start + n.len) return n; }
+    return null;
+  }
+  function nearRightEdge(n, x){ const right = KEYW + (n.start + n.len)*colW; return right - x <= Math.max(5, Math.min(9, colW*0.3)); }
+  function describe(n){
+    return noteName(n.pitch + 12*S.octave) + ' · ST ' + (n.start+1) + ' · LEN ' + n.len + ' · VEL ' + n.vel;
+  }
+  function removeNote(n){ notes = notes.filter(x => x !== n); if (selected === n) selected = null; }
+
+  let drag = null, lastDown = null, infoTxt = '', curCursor = '';
+  function setInfo(t){ if (t !== infoTxt){ infoTxt = t; rollInfo.textContent = t; } }
+  function setCursor(c){ if (c !== curCursor){ curCursor = c; rollCv.style.cursor = c; } }
+  const DBL_MS = 350;
+  rollCv.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    const { x, y } = posIn(rollCv, e), h = hit(x, y);
+    rollCv.focus({ preventScroll:true });
+    if (!h.inGrid){
+      preview(h.pitch); keyFlash = h.pitch; drawRoll();
+      setTimeout(() => { keyFlash = null; drawRoll(); }, 180);
+      return;
+    }
+    const now = performance.now();
+    const isDouble = lastDown && now - lastDown.t < DBL_MS && lastDown.col === h.col && lastDown.pitch === h.pitch;
+    lastDown = isDouble ? null : { t:now, col:h.col, pitch:h.pitch };
+    let n = noteAt(h.pitch, h.col);
+    if (n && isDouble){
+      removeNote(n); drag = null;
+      setInfo('NOTE DELETED'); drawAll(); return;
+    }
+    if (n){
+      if (selected !== n) preview(n.pitch, n.vel);
+      selected = n;
+      if (nearRightEdge(n, x)) drag = { mode:'resize', n };
+      else drag = { mode:'move', n, off:h.col - n.start, moved:false };
+      setInfo(describe(n));
+    } else if (isDouble){
+      n = addNote(h.pitch, h.col, 1, S.defVel);
+      selected = n; drag = { mode:'resize', n };
+      preview(h.pitch, S.defVel);
+      setInfo(describe(n));
+    } else {
+      selected = null; drag = null;
+      setInfo(noteName(h.pitch + 12*S.octave) + ' · ST ' + (h.col+1));
+      drawAll(); return;
+    }
+    rollCv.setPointerCapture(e.pointerId);
+    drawAll();
+  });
+  let hoverEv = null, hoverRaf = 0;
+  function hoverTick(){
+    hoverRaf = 0;
+    const e = hoverEv; if (!e || drag) return;
+    const { x, y } = posIn(rollCv, e), h = hit(x, y);
+    const hp = h.pitch;
+    if (hp !== hoverPitch){ hoverPitch = hp; drawRoll(); }
+    if (!h.inGrid){ setCursor('pointer'); setInfo(noteName(hp + 12*S.octave)); return; }
+    const n = noteAt(hp, h.col);
+    setCursor(n ? (nearRightEdge(n, x) ? 'ew-resize' : 'grab') : 'crosshair');
+    setInfo(n ? describe(n) : noteName(hp + 12*S.octave) + ' · ST ' + (h.col+1));
+  }
+  rollCv.addEventListener('pointermove', e => {
+    if (!drag){ hoverEv = e; if (!hoverRaf) hoverRaf = requestAnimationFrame(hoverTick); return; }
+    const { x, y } = posIn(rollCv, e), h = hit(x, y);
+    if (drag){
+      const n = drag.n;
+      if (drag.mode === 'resize'){
+        const len = clamp(h.col - n.start + 1, 1, STEPS - n.start);
+        if (len !== n.len){ n.len = len; drawAll(); }
+      } else {
+        const ns = clamp(h.col - drag.off, 0, STEPS - n.len);
+        if (ns !== n.start || h.pitch !== n.pitch){
+          if (h.pitch !== n.pitch) preview(h.pitch, n.vel);
+          n.start = ns; n.pitch = h.pitch; drag.moved = true; drawAll();
+        }
+      }
+      setInfo(describe(n));
+    }
+  });
+  function endDrag(){
+    drag = null; drawAll();
+  }
+  rollCv.addEventListener('pointerup', endDrag);
+  rollCv.addEventListener('pointercancel', () => { drag = null; drawAll(); });
+  rollCv.addEventListener('pointerleave', () => { if (!drag){ hoverPitch = null; drawRoll(); } });
+  rollCv.addEventListener('keydown', e => {
+    if (!selected) return;
+    const n = selected;
+    if (e.key === 'Delete' || e.key === 'Backspace'){ removeNote(n); e.preventDefault(); }
+    else if (e.key === 'ArrowUp'){ n.pitch = clamp(n.pitch + (e.shiftKey?12:1), LOW, HIGH); preview(n.pitch, n.vel); e.preventDefault(); }
+    else if (e.key === 'ArrowDown'){ n.pitch = clamp(n.pitch - (e.shiftKey?12:1), LOW, HIGH); preview(n.pitch, n.vel); e.preventDefault(); }
+    else if (e.key === 'ArrowRight'){ n.start = clamp(n.start + 1, 0, STEPS - n.len); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft'){ n.start = clamp(n.start - 1, 0, STEPS - n.len); e.preventDefault(); }
+    else return;
+    setInfo(selected ? describe(selected) : 'NOTE DELETED');
+    drawAll();
+  });
+
+  // velocity lane
+  let velDrag = null;
+  function velTargets(col){
+    if (selected && selected.start === col) return [selected];
+    return notes.filter(n => n.start === col);
+  }
+  function applyVel(e){
+    const { x, y } = posIn(velCv, e);
+    if (x < KEYW) return;
+    const col = velDrag && velDrag.col !== undefined ? velDrag.col : clamp(Math.floor((x - KEYW)/colW), 0, STEPS-1);
+    const v = clamp(Math.round((VELH - 5 - y) / (VELH - 14) * 127), 1, 127);
+    const ts = velDrag && velDrag.targets ? velDrag.targets : velTargets(col);
+    ts.forEach(n => { n.vel = v; });
+    if (ts.length) setInfo('ST ' + (col+1) + ' · VEL ' + v + (ts.length > 1 ? ' · ' + ts.length + ' NOTES' : ''));
+    drawAll();
+  }
+  velCv.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    const { x } = posIn(velCv, e);
+    if (x < KEYW) return;
+    const col = clamp(Math.floor((x - KEYW)/colW), 0, STEPS-1);
+    // a selected note in this column is edited on its own; otherwise all notes starting here
+    velDrag = { col, targets: velTargets(col) };
+    velCv.setPointerCapture(e.pointerId); applyVel(e);
+  });
+  velCv.addEventListener('pointermove', e => {
+    if (velDrag){ applyVel(e); return; }
+    const { x } = posIn(velCv, e);
+    velCv.style.cursor = x >= KEYW ? 'ns-resize' : 'default';
+  });
+  velCv.addEventListener('pointerup', () => { velDrag = null; });
+  velCv.addEventListener('pointercancel', () => { velDrag = null; });
+
+  document.getElementById('clrBtn').addEventListener('click', () => {
+    notes = []; selected = null; setInfo('PATTERN CLEARED'); drawAll();
+  });
+  document.getElementById('rndBtn').addEventListener('click', () => {
+    const scale = [0,3,5,7,10];                 // A minor pentatonic, rooted on A
+    const pool = [];
+    for (let p=LOW; p<=HIGH; p++) if (scale.includes(pc(p - 9))) pool.push(p);
+    notes = []; selected = null;
+    const roots = [57, 53, 55, 52];
+    for (let bar=0; bar<4; bar++){
+      const r = roots[Math.floor(Math.random()*roots.length)];
+      if (Math.random() < 0.75){ addNote(r, bar*4, 4, 70 + Math.floor(Math.random()*25)); addNote(r+7, bar*4, 4, 64 + Math.floor(Math.random()*20)); }
+    }
+    let s = 0;
+    while (s < STEPS){
+      if (Math.random() < 0.55){
+        const len = Math.random() < 0.3 ? 2 : 1;
+        const p = pool[Math.floor(pool.length*0.45 + Math.random()*pool.length*0.55)] || pool[pool.length-1];
+        addNote(p, s, Math.min(len, STEPS - s), 60 + Math.floor(Math.random()*67));
+        s += len;
+      } else s++;
+    }
+    setInfo('RANDOM PATTERN'); drawAll();
+  });
+
+  let lastW = 0;
+  window.addEventListener('resize', () => {
+    const w = rollScroll.clientWidth;
+    if (w !== lastW){ lastW = w; sizeRoll(); }
+    drawEnv();
+  });
+  sizeRoll(); lastW = W; drawEnv();
+  rollScroll.scrollTop = 5 * ROWH;
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { drawAll(); drawEnv(); });
+
+  /* ---------- sequencer clock ---------- */
+  const syncLed = document.getElementById('syncLed'), syncStatus = document.getElementById('syncStatus'), syncCountdown = document.getElementById('syncCountdown');
+  const startBtn = document.getElementById('startBtn'), stopBtn = document.getElementById('stopBtn');
+
+  const audioTimeForWallMs = ms => anchorAudio + (ms - anchorWall)/1000;
+
+  function scheduleStep(step, time){
+    const stepDur = 60/S.bpm/4;
+    notes.forEach(n => {
+      if (n.start === step) playVoice(n.pitch + 12*S.octave, time, n.len*stepDur*0.96, n.vel);
+    });
+    visualQueue.push({ step, time });
+  }
+  function advanceStep(){
+    const stepDur = 60/S.bpm/4, sw = stepDur*(S.swing/100)*0.5;
+    nextStepTime += (currentStep % 2 === 0) ? stepDur + sw : stepDur - sw;
+    currentStep = (currentStep + 1) % STEPS;
+  }
+  function scheduler(){
+    while (nextStepTime < ctx.currentTime + SCHEDULE_AHEAD){ scheduleStep(currentStep, nextStepTime); advanceStep(); }
+  }
+  function formatClock(ms){
+    const d = new Date(ms), p = (n,l) => String(n).padStart(l,'0');
+    return p(d.getHours(),2)+':'+p(d.getMinutes(),2)+':'+p(d.getSeconds(),2)+'.'+p(d.getMilliseconds(),3);
+  }
+  function onStepPlay(step){
+    playStep = step; drawAll();
+    if (!locked){
+      locked = true;
+      syncLed.classList.remove('pending'); syncLed.classList.add('live');
+      syncStatus.textContent = 'RUNNING';
+      syncCountdown.textContent = 'LOCKED @ ' + formatClock(lockWallTime);
+    }
+  }
+
+  startBtn.addEventListener('click', () => {
+    getCtx();
+    anchorAudio = ctx.currentTime; anchorWall = Date.now();
+    const gridMs = GRID_SEC*1000;
+    const boundary = Math.ceil((anchorWall + 150)/gridMs)*gridMs;   // seconds on the clock divisible by 4
+    nextStepTime = audioTimeForWallMs(boundary);
+    currentStep = 0; visualQueue = []; playStep = -1;
+    lockWallTime = boundary; locked = false; isPlaying = true;
+    startBtn.disabled = true; stopBtn.disabled = false;
+    syncLed.classList.remove('live'); syncLed.classList.add('pending');
+    syncStatus.textContent = 'LOCKING…'; syncCountdown.textContent = '';
+    scheduler();
+    schedTimer = setInterval(scheduler, LOOKAHEAD_MS);
+  });
+  stopBtn.addEventListener('click', () => {
+    isPlaying = false; locked = false;
+    clearInterval(schedTimer);
+    startBtn.disabled = false; stopBtn.disabled = true;
+    syncLed.classList.remove('pending','live');
+    syncStatus.textContent = 'STOPPED'; syncCountdown.textContent = '';
+    visualQueue = []; playStep = -1; drawAll();
+  });
+
+  let lastVoiceTxt = '';
+  function uiLoop(){
+    if (ctx){
+      const now = ctx.currentTime;
+      while (visualQueue.length && visualQueue[0].time <= now) onStepPlay(visualQueue.shift().step);
+      if (isPlaying && !locked){
+        syncCountdown.textContent = 'STARTS IN ' + Math.max(0, (lockWallTime - Date.now())/1000).toFixed(1) + 's';
+      }
+      voices = voices.filter(v => v.end > now);
+      const t = voices.filter(v => v.start <= now).length + '/' + MAX_VOICES;
+      if (t !== lastVoiceTxt){ voiceLcd.textContent = t; lastVoiceTxt = t; }
+    }
+    requestAnimationFrame(uiLoop);
+  }
+  requestAnimationFrame(uiLoop);
+})();
+</script>
+
+</html>

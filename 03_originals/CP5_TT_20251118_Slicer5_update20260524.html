@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Web Sampler — Random Slice Sequencer</title>
+  <style>
+    :root{
+      --bg:#0b0b0b;
+      --panel:#151515;
+      --panel-2:#1e1e1e;
+      --text:#e7e7e7;
+      --accent:#eaff00;      /* fluogeel */
+      --accent-dim:#cfe600;
+      --shadow:0 0 12px rgba(234,255,0,0.35);
+      --shadow-strong:0 0 18px rgba(234,255,0,0.55);
+      --muted:#9aa0a6;
+      --warning:#ffcf33;
+      --ok:#76ff03;
+      --danger:#ff5252;
+    }
+
+    html,body{background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif; }
+    .wrap{max-width:1000px; margin:40px auto; padding:24px; background:linear-gradient(180deg,var(--panel),var(--panel-2)); border:1px solid #222; border-radius:16px; box-shadow:0 20px 50px rgba(0,0,0,0.45);}
+    h1{margin:0 0 8px; font-weight:700; letter-spacing:.4px;}
+    .subtitle{color:var(--muted); margin-bottom:20px}
+
+    .row{display:flex; gap:18px; flex-wrap:wrap;}
+    .col{flex:1 1 280px; min-width:280px; background:#111; border:1px solid #222; border-radius:12px; padding:16px;}
+    .panel-title{font-size:14px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); margin-bottom:10px}
+
+    .btn{appearance:none; border:none; border-radius:10px; padding:12px 18px; font-weight:700; cursor:pointer; color:#000; background:var(--accent);
+         box-shadow:var(--shadow-strong); transition:transform .05s ease, filter .2s ease;}
+    .btn:active{transform:scale(0.98)}
+    .btn.secondary{background:#2a2a2a; color:var(--text); box-shadow:0 0 0 transparent; border:1px solid #333;}
+    .btn-block{width:100%}
+
+    .file{display:flex; align-items:center; gap:10px}
+    input[type="file"]{color:var(--muted); filter:drop-shadow(0 0 0 transparent);}
+
+    label{font-size:13px; color:var(--muted)}
+    .control{display:grid; grid-template-columns: 1fr 120px; gap:10px; align-items:center; margin:8px 0}
+    .control .value{justify-self:end; color:var(--accent); font-weight:600}
+
+    /* Fluogeel sliders met shady rand */
+    input[type="range"]{
+      -webkit-appearance:none; width:100%; height:12px; background:#0e0e0e; border-radius:8px; border:1px solid #333;
+      box-shadow: inset 0 0 8px rgba(0,0,0,.6), 0 0 10px rgba(234,255,0,.25);
+    }
+    input[type="range"]::-webkit-slider-thumb{
+      -webkit-appearance:none; width:20px; height:20px; border-radius:50%;
+      background: radial-gradient(circle at 30% 30%, #ffff70 0%, var(--accent) 50%, #b1c600 100%);
+      border:1px solid #666; box-shadow: var(--shadow);
+    }
+    input[type="range"]::-moz-range-thumb{
+      width:20px; height:20px; border-radius:50%;
+      background: radial-gradient(circle at 30% 30%, #ffff70 0%, var(--accent) 50%, #b1c600 100%);
+      border:1px solid #666; box-shadow: var(--shadow);
+    }
+    input[type="range"]::-webkit-slider-runnable-track{
+      height:12px; border-radius:8px; background:linear-gradient(90deg,#202020,#151515);
+    }
+    input[type="range"]::-moz-range-track{
+      height:12px; border-radius:8px; background:linear-gradient(90deg,#202020,#151515);
+    }
+
+    /* VU meter */
+    .vu-wrap{display:flex; gap:12px; align-items:center}
+    .vu{width:100%; height:22px; background:#0e0e0e; border-radius:6px; border:1px solid #333; position:relative; overflow:hidden}
+    .vu .bar{position:absolute; left:0; top:0; bottom:0; width:0%; background:linear-gradient(90deg,#6cff00,var(--accent)); box-shadow:var(--shadow);}
+    .vu .clip{position:absolute; right:8px; top:50%; transform:translateY(-50%); font-size:11px; color:#f07167}
+    .vu-db{width:80px; text-align:right; font-feature-settings:"tnum";}
+
+    .status{margin-top:8px; color:var(--muted)}
+    .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; background:#111; border:1px solid #222; border-radius:6px; padding:2px 6px;}
+
+    .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+    .select, select{width:100%; padding:8px; background:#0f0f0f; color:var(--text); border:1px solid #333; border-radius:8px}
+
+    canvas#slices{width:100%; height:80px; background:#0e0e0e; border:1px solid #333; border-radius:8px; display:block; margin-top:10px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Random Slice Sampler</h1>
+    <div class="subtitle">Web Audio — fluogeel design, sync start op <span class="kbd">seconds % 4 == 0</span></div>
+
+    <div class="row">
+      <div class="col">
+        <div class="panel-title">Bestand & Transport</div>
+        <div class="file">
+          <input id="file" type="file" accept="audio/*">
+          <button id="clear" class="btn secondary">Reset</button>
+        </div>
+        <div style="margin-top:12px" class="grid-2">
+          <button id="startStop" class="btn btn-block">Start (ge-syncd)</button>
+          <button id="stop" class="btn btn-block secondary">Stop</button>
+        </div>
+        <div class="status" id="syncStatus">Wacht op sample…</div>
+        <div class="vu-wrap" style="margin-top:12px">
+          <div class="vu"><div class="bar" id="vuBar"></div><div class="clip" id="vuClip"></div></div>
+          <div class="vu-db" id="vuDb">-∞ dB</div>
+        </div>
+        <div class="control" style="margin-top:10px">
+          <label for="volume">Volume</label>
+          <div class="value" id="volumeVal">90%</div>
+          <input id="volume" type="range" min="0" max="100" value="90" step="1">
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="panel-title">Tempo & Sequencer</div>
+        <div class="control">
+          <label for="bpm">Tempo (BPM)</label>
+          <div class="value" id="bpmVal">120</div>
+          <input id="bpm" type="range" min="40" max="220" value="120" step="1">
+        </div>
+        <div class="control">
+          <label for="density">Notedichtheid (0–100%)</label>
+          <div class="value" id="densityVal">75%</div>
+          <input id="density" type="range" min="0" max="100" value="75">
+        </div>
+        <div class="control">
+          <label for="sliceMs">Slice lengte (ms)</label>
+          <div class="value" id="sliceMsVal">180 ms</div>
+          <input id="sliceMs" type="range" min="40" max="1000" value="180" step="10">
+        </div>
+        <div class="control">
+          <label for="jitter">Jitter binnen slice (ms)</label>
+          <div class="value" id="jitterVal">20 ms</div>
+          <input id="jitter" type="range" min="0" max="200" value="20" step="5">
+        </div>
+        <canvas id="slices"></canvas>
+      </div>
+
+      <div class="col">
+        <div class="panel-title">Filter</div>
+        <div class="control">
+          <label for="filterType">Type</label>
+          <select id="filterType" class="select">
+            <option value="lowpass">Lowpass</option>
+            <option value="highpass">Highpass</option>
+            <option value="bandpass">Bandpass</option>
+            <option value="notch">Notch</option>
+          </select>
+          <div></div>
+        </div>
+        <div class="control">
+          <label for="cutoff">Cutoff (Hz)</label>
+          <div class="value" id="cutoffVal">1200</div>
+          <input id="cutoff" type="range" min="50" max="20000" value="1200" step="1">
+        </div>
+        <div class="control">
+          <label for="q">Resonantie (Q)</label>
+          <div class="value" id="qVal">0.8</div>
+          <input id="q" type="range" min="0" max="20" value="0.8" step="0.1">
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="panel-title">ADSR & Reverb</div>
+        <div class="control">
+          <label for="attack">Attack (ms)</label>
+          <div class="value" id="attackVal">8 ms</div>
+          <input id="attack" type="range" min="0" max="500" value="8" step="1">
+        </div>
+        <div class="control">
+          <label for="decay">Decay (ms)</label>
+          <div class="value" id="decayVal">60 ms</div>
+          <input id="decay" type="range" min="0" max="2000" value="60" step="5">
+        </div>
+        <div class="control">
+          <label for="sustain">Sustain (% van 1.0)</label>
+          <div class="value" id="sustainVal">60%</div>
+          <input id="sustain" type="range" min="0" max="100" value="60">
+        </div>
+        <div class="control">
+          <label for="release">Release (ms)</label>
+          <div class="value" id="releaseVal">120 ms</div>
+          <input id="release" type="range" min="0" max="3000" value="120" step="10">
+        </div>
+        <div class="control">
+          <label for="reverbWet">Reverb wet (%)</label>
+          <div class="value" id="reverbWetVal">18%</div>
+          <input id="reverbWet" type="range" min="0" max="100" value="18">
+        </div>
+        <div class="control">
+          <label for="reverbLen">Reverb grootte (s)</label>
+          <div class="value" id="reverbLenVal">2.2 s</div>
+          <input id="reverbLen" type="range" min="0.3" max="6" value="2.2" step="0.1">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ====== Audio context & nodes ======
+    let audioCtx;
+    let masterGain, analyser, filterNode, convolver, dryGain, wetGain;
+    let buffer = null;
+    let slices = [];
+    let isRunning = false;
+
+    // Sequencer state
+    let bpm = 120;
+    let density = 0.75;          // probability per tick to fire
+    let sliceMs = 180;
+    let jitterMs = 20;
+    let noteInterval = 0.25;     // beats per tick (16th)
+    let lookaheadTimer = null;
+    let scheduleAheadTime = 0.25; // seconds
+    let nextNoteTime = 0;
+
+    // ====== UI elements ======
+    const $ = id => document.getElementById(id);
+    const fileInput = $('file');
+    const startStop = $('startStop');
+    const stopBtn   = $('stop');
+    const clearBtn  = $('clear');
+    const syncStatus = $('syncStatus');
+    const vuBar  = $('vuBar');
+    const vuDb   = $('vuDb');
+    const vuClip = $('vuClip');
+    const slicesCanvas = $('slices');
+    const sc = slicesCanvas.getContext('2d');
+
+    // value mirrors
+    const mirror = (id, format = v => v) => {
+      const el = $(id);
+      const valEl = $(id + 'Val');
+      const fn = () => valEl.textContent = format(el.value);
+      el.addEventListener('input', fn); fn(); return el;
+    };
+    const bpmEl      = mirror('bpm', v => Math.round(v));
+    const densityEl  = mirror('density', v => Math.round(v)+'%');
+    const sliceMsEl  = mirror('sliceMs', v => Math.round(v)+' ms');
+    const jitterEl   = mirror('jitter', v => Math.round(v)+' ms');
+
+    const filterTypeEl = $('filterType');
+    const cutoffEl  = mirror('cutoff', v => Math.round(v));
+    const qEl       = mirror('q', v => Number(v).toFixed(1));
+
+    const attackEl  = mirror('attack', v => Math.round(v)+' ms');
+    const decayEl   = mirror('decay', v => Math.round(v)+' ms');
+    const sustainEl = mirror('sustain', v => Math.round(v)+'%');
+    const releaseEl = mirror('release', v => Math.round(v)+' ms');
+
+    const reverbWetEl = mirror('reverbWet', v => Math.round(v)+'%');
+    const reverbLenEl = mirror('reverbLen', v => Number(v).toFixed(1)+' s');
+    const volumeEl    = mirror('volume', v => Math.round(v)+'%');
+
+    function ensureAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // Master
+        masterGain = audioCtx.createGain(); masterGain.gain.value = +volumeEl.value / 100;
+        analyser = audioCtx.createAnalyser(); analyser.fftSize = 1024;
+        filterNode = audioCtx.createBiquadFilter(); filterNode.type = 'lowpass'; filterNode.frequency.value = 1200; filterNode.Q.value = 0.8;
+        convolver = audioCtx.createConvolver();
+        dryGain = audioCtx.createGain(); dryGain.gain.value = 1.0;
+        wetGain = audioCtx.createGain(); wetGain.gain.value = 0.18;
+
+        // Routing: common post-voice filter, then split dry/wet
+        filterNode.connect(dryGain);
+        filterNode.connect(convolver);
+        convolver.connect(wetGain);
+
+        // Mix -> master -> analyser -> destination
+        dryGain.connect(masterGain);
+        wetGain.connect(masterGain);
+        masterGain.connect(analyser);
+        analyser.connect(audioCtx.destination);
+
+        buildImpulse(+reverbLenEl.value);
+        startVu();
+      }
+    }
+
+    function buildImpulse(seconds=2.2, decay=2.0){
+      // Procedural impulse (simple plate-like noise)
+      const rate = audioCtx.sampleRate;
+      const length = Math.max(1, Math.floor(seconds * rate));
+      const impulse = audioCtx.createBuffer(2, length, rate);
+      for (let ch = 0; ch < 2; ch++){
+        const data = impulse.getChannelData(ch);
+        for (let i = 0; i < length; i++){
+          // Exponential decay
+          data[i] = (Math.random()*2-1) * Math.pow(1 - i/length, decay);
+        }
+      }
+      convolver.buffer = impulse;
+    }
+
+    // ====== File loading & slicing ======
+    fileInput.addEventListener('change', async (e)=>{
+      ensureAudio();
+      const file = e.target.files[0];
+      if (!file){ return; }
+      syncStatus.textContent = 'Laden…';
+      const arr = await file.arrayBuffer();
+      buffer = await audioCtx.decodeAudioData(arr);
+      computeSlices();
+      drawSlices();
+      syncStatus.textContent = `Sample geladen (${(buffer.duration).toFixed(2)} s). Klik Start om ge-syncd te starten.`;
+    });
+
+    function computeSlices(){
+      if (!buffer) { slices = []; return; }
+      const sliceSec = +sliceMsEl.value / 1000;
+      const count = Math.max(1, Math.floor(buffer.duration / sliceSec));
+      slices = new Array(count).fill(0).map((_,i)=>({index:i, start:i*sliceSec, duration:Math.min(sliceSec, buffer.duration - i*sliceSec)}));
+    }
+
+    sliceMsEl.addEventListener('input', ()=>{
+      computeSlices();
+      drawSlices();
+    });
+
+    function drawSlices(){
+      const w = slicesCanvas.width = slicesCanvas.clientWidth;
+      const h = slicesCanvas.height = slicesCanvas.clientHeight;
+      sc.clearRect(0,0,w,h);
+      sc.fillStyle = '#0e0e0e'; sc.fillRect(0,0,w,h);
+
+      if (!buffer || !slices.length){
+        sc.fillStyle = '#222'; sc.fillRect(0,0,w,h);
+        sc.fillStyle = '#555'; sc.font = '12px system-ui';
+        sc.fillText('Geen waveform — laad een sample.', 10, h/2 + 4);
+        sc.strokeStyle = '#333'; sc.strokeRect(0,0,w,h);
+        return;
+      }
+
+      // Draw alternating slice background bands
+      slices.forEach((s, i)=>{
+        const x0 = (s.start / buffer.duration) * w;
+        const x1 = ((s.start + s.duration) / buffer.duration) * w;
+        sc.fillStyle = i % 2 ? '#141414' : '#111111';
+        sc.fillRect(x0, 0, x1 - x0, h);
+      });
+
+      // Draw waveform (mix L+R, downsample to canvas width)
+      const chanData = buffer.getChannelData(0);
+      const totalSamples = chanData.length;
+      const mid = h / 2;
+
+      sc.beginPath();
+      sc.strokeStyle = '#eaff00';
+      sc.lineWidth = 1.5;
+      sc.shadowColor = 'rgba(234,255,0,0.5)';
+      sc.shadowBlur = 4;
+
+      for (let px = 0; px < w; px++){
+        const startSample = Math.floor((px / w) * totalSamples);
+        const endSample   = Math.floor(((px + 1) / w) * totalSamples);
+        let min = 1, max = -1;
+        for (let j = startSample; j < endSample; j++){
+          const v = chanData[j];
+          if (v < min) min = v;
+          if (v > max) max = v;
+        }
+        const yTop    = mid - max * mid * 0.9;
+        const yBottom = mid - min * mid * 0.9;
+        if (px === 0) sc.moveTo(px, yTop);
+        sc.lineTo(px, yTop);
+        sc.lineTo(px, yBottom);
+      }
+      sc.stroke();
+      sc.shadowBlur = 0;
+
+      // Slice separator lines
+      sc.strokeStyle = 'rgba(234,255,0,0.25)';
+      sc.lineWidth = 1;
+      slices.forEach((s, i)=>{
+        if (i === 0) return;
+        const x = (s.start / buffer.duration) * w;
+        sc.beginPath(); sc.moveTo(x, 0); sc.lineTo(x, h); sc.stroke();
+      });
+
+      // Bottom accent bar
+      sc.fillStyle = '#eaff00';
+      sc.globalAlpha = 0.8;
+      sc.fillRect(0, h-3, w, 3);
+      sc.globalAlpha = 1;
+    }
+
+    clearBtn.addEventListener('click', ()=>{
+      if (isRunning) stopSequencer();
+      buffer = null; slices = [];
+      drawSlices();
+      syncStatus.textContent = 'Reset. Wacht op sample…';
+      fileInput.value = '';
+    });
+
+    // ====== Controls wiring ======
+    bpmEl.addEventListener('input', ()=> bpm = +bpmEl.value );
+    densityEl.addEventListener('input', ()=> density = +densityEl.value/100 );
+    jitterEl.addEventListener('input', ()=> {/* used per note */});
+    filterTypeEl.addEventListener('change', ()=> filterNode.type = filterTypeEl.value );
+    cutoffEl.addEventListener('input', ()=> filterNode.frequency.value = +cutoffEl.value );
+    qEl.addEventListener('input', ()=> filterNode.Q.value = +qEl.value );
+    reverbWetEl.addEventListener('input', ()=> wetGain.gain.value = +reverbWetEl.value/100 );
+    reverbLenEl.addEventListener('input', ()=> buildImpulse(+reverbLenEl.value) );
+    volumeEl.addEventListener('input', ()=>{ if (masterGain) masterGain.gain.value = +volumeEl.value/100; });
+
+    // ====== Sequencer ======
+    startStop.addEventListener('click', async ()=>{
+      ensureAudio();
+      if (!buffer){ syncStatus.textContent = 'Laad eerst een sample.'; return; }
+      await audioCtx.resume();
+
+      // Sync: begin wanneer (seconds % 4) == 0
+      const now = new Date();
+      const secs = now.getSeconds();
+      const ms = now.getMilliseconds();
+      const toNext = (4 - (secs % 4)) % 4;   // 0,1,2,3 s
+      let delayMs = toNext*1000 - ms;
+      if (delayMs < 0) delayMs += 4000;      // safety
+
+      const startAt = audioCtx.currentTime + delayMs/1000;
+      syncStatus.textContent = `Start over ${(delayMs/1000).toFixed(2)} s (wacht op seconds%4==0)…`;
+      setTimeout(()=> startSequencer(startAt), Math.max(0, delayMs));
+    });
+
+    stopBtn.addEventListener('click', ()=> stopSequencer() );
+
+    function startSequencer(startAt){
+      if (isRunning) return;
+      isRunning = true;
+      nextNoteTime = startAt ?? audioCtx.currentTime;
+      lookaheadTimer = setInterval(scheduler, 25);
+      syncStatus.textContent = 'Sequencer loopt (ge-syncd).';
+    }
+
+    function stopSequencer(){
+      isRunning = false;
+      if (lookaheadTimer){ clearInterval(lookaheadTimer); lookaheadTimer = null; }
+      syncStatus.textContent = 'Gestopt.';
+    }
+
+    function scheduler(){
+      const secPerBeat = 60 / bpm;
+      while (nextNoteTime < audioCtx.currentTime + scheduleAheadTime){
+        if (Math.random() <= density && buffer && slices.length){
+          const slice = slices[Math.floor(Math.random()*slices.length)];
+          scheduleSlice(slice, nextNoteTime);
+        }
+        nextNoteTime += noteInterval * secPerBeat;
+      }
+    }
+
+    function scheduleSlice(slice, time){
+      // Compute jittered offset
+      const jitter = (Math.random()*2-1) * (+jitterEl.value/1000);
+      const startOffset = Math.max(0, Math.min(buffer.duration - 0.005, slice.start + jitter));
+      const dur = Math.min(slice.duration, 0.95*slice.duration);
+
+      // Per-voice chain
+      const src = audioCtx.createBufferSource(); src.buffer = buffer;
+      const vGain = audioCtx.createGain(); vGain.gain.value = 0.0;
+
+      // Envelope (ADSR)
+      const A = +attackEl.value / 1000;
+      const D = +decayEl.value / 1000;
+      const S = +sustainEl.value / 100;
+      const R = +releaseEl.value / 1000;
+
+      const t0 = time;
+      vGain.gain.cancelScheduledValues(t0);
+      vGain.gain.setValueAtTime(0.0001, t0);
+      vGain.gain.linearRampToValueAtTime(1.0, t0 + Math.max(0.001, A));
+      vGain.gain.linearRampToValueAtTime(S, t0 + Math.max(0.001, A) + D);
+      // Release starts slightly before note end to avoid clicks
+      const noteEnd = t0 + dur;
+      vGain.gain.setValueAtTime(S, noteEnd);
+      vGain.gain.linearRampToValueAtTime(0.0001, noteEnd + R);
+
+      // Connect: src -> vGain -> filterNode (shared) -> dry/wet -> master
+      src.connect(vGain);
+      vGain.connect(filterNode);
+
+      src.start(t0, startOffset, dur + R + 0.02);
+      // Auto stop a bit after envelope finishes
+      src.stop(noteEnd + R + 0.03);
+    }
+
+    // ====== VU meter ======
+    function startVu(){
+      const data = new Float32Array(analyser.fftSize);
+      function loop(){
+        analyser.getFloatTimeDomainData(data);
+        // RMS
+        let sum = 0;
+        for (let i=0;i<data.length;i++){ sum += data[i]*data[i]; }
+        const rms = Math.sqrt(sum / data.length);
+        const db = 20 * Math.log10(rms + 1e-7);
+        const norm = Math.min(1, Math.max(0, (db + 60) / 60)); // map -60..0 dB to 0..1
+        vuBar.style.width = (norm*100).toFixed(1)+'%';
+        vuDb.textContent = (db>-80? db.toFixed(1) : '-∞') + ' dB';
+        vuClip.textContent = (db> -1 ? 'CLIP' : '');
+        requestAnimationFrame(loop);
+      }
+      loop();
+    }
+
+    // Prevent accidental page sleep issues
+    document.addEventListener('visibilitychange', ()=>{
+      if (document.visibilityState === 'hidden' && audioCtx && isRunning){
+        // keep scheduler alive (no special action required here)
+      }
+    });
+  </script>
+</body>
+</html>

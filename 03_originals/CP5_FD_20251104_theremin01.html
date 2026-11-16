@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Webcam Theremin – Web Audio API</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --fg: #e8eefc;
+      --accent: #6bc4ff;
+      --ok: #43d390;
+      --warn: #ffc857;
+      --err: #ff6b6b;
+    }
+    html, body { height: 100%; }
+    body {
+      margin: 0; background: var(--bg); color: var(--fg);
+      font: 16px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, sans-serif;
+      display: grid; place-items: center; padding: 24px;
+    }
+    .app { width: min(980px, 96vw); }
+    header { margin-bottom: 12px; }
+    h1 { font-size: 1.4rem; margin: 0 0 4px; }
+    p.lead { margin: 0; opacity: .8; }
+
+    .panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px; align-items: start;
+      margin: 16px 0 10px;
+    }
+    .videoWrap, .controls { background: #101731; border: 1px solid #1b254a; border-radius: 12px; padding: 14px; }
+    .videoWrap h2, .controls h2 { margin: 0 0 10px; font-size: 1.05rem; }
+
+    .stage { position: relative; }
+    canvas#view { width: 100%; height: auto; display: block; background: #050913; border-radius: 8px; }
+    .hud { position: absolute; inset: 0; pointer-events: none; font-size: 12px; }
+    .hud .readout { position: absolute; left: 8px; bottom: 8px; background: rgba(0,0,0,.45); padding: 6px 8px; border-radius: 6px; }
+    .hud .barX, .hud .barY {
+      position: absolute; background: linear-gradient(90deg, transparent, rgba(107,196,255,.8), transparent);
+      mix-blend-mode: screen;
+    }
+    .hud .barY { left: 0; right: 0; height: 2px; }
+    .hud .barX { top: 0; bottom: 0; width: 2px; }
+
+    video { display: none; }
+
+    .controls .row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; margin: 10px 0; }
+    .controls label { font-size: 0.95rem; opacity: .9; }
+    .controls input[type="range"] { width: 220px; }
+    .controls .small { font-size: .85rem; opacity: .8; }
+    .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+    button { cursor: pointer; background: #172149; border: 1px solid #2a3a78; color: var(--fg); padding: 10px 12px; border-radius: 8px; }
+    button.primary { background: #204189; border-color: #2a62cc; }
+    button.danger { background: #4b2030; border-color: #9c405a; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+
+    .note { margin-top: 8px; color: #bcd; opacity: .85; }
+    code { background: #0c132b; padding: 2px 6px; border-radius: 4px; }
+
+    @media (max-width: 860px) {
+      .panel { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Theremin-achtige synthesizer met webcam (Web Audio API)</h1>
+      <p class="lead">Beweeg een <strong>helder object</strong> (je hand onder een lamp of je telefoonscherm) <strong>omhoog/omlaag</strong> om de <em>toonhoogte</em> te veranderen. Beweeg <strong>links/rechts</strong> voor <em>volume</em>. Klik op <strong>Start</strong> om camera & audio te activeren.</p>
+    </header>
+
+    <div class="panel">
+      <section class="videoWrap">
+        <h2>Webcam & detectie</h2>
+        <div class="stage">
+          <canvas id="view" width="640" height="480" aria-label="Detectie-voorbeeld"></canvas>
+          <div class="hud" aria-hidden="true">
+            <div id="barY" class="barY" style="top:50%"></div>
+            <div id="barX" class="barX" style="left:50%"></div>
+            <div class="readout" id="readout">freq: – Hz | vol: – | luminantie: –</div>
+          </div>
+        </div>
+        <video id="video" playsinline autoplay muted></video>
+      </section>
+
+      <section class="controls">
+        <h2>Besturing</h2>
+        <div class="btns">
+          <button id="startBtn" class="primary">▶︎ Start</button>
+          <button id="stopBtn" class="danger" disabled>⏹ Stop</button>
+          <button id="calBtn">⚙︎ Herkalibreer drempel</button>
+        </div>
+
+        <div class="row">
+          <label>Frequentiebereik (min–max): <span id="freqLabel">150–1200 Hz</span></label>
+          <div>
+            <input id="minFreq" type="range" min="50" max="1000" value="150" step="1">
+            <input id="maxFreq" type="range" min="300" max="3000" value="1200" step="1">
+          </div>
+        </div>
+
+        <div class="row">
+          <label>Smoothing (ms): <span id="smoothLabel">50</span></label>
+          <input id="smooth" type="range" min="0" max="250" value="50" step="5">
+        </div>
+
+        <div class="row">
+          <label>Drempel gevoeligheid (σ): <span id="thrLabel">0.5</span></label>
+          <input id="threshK" type="range" min="0" max="2" value="0.5" step="0.05">
+        </div>
+
+        <div class="row">
+          <label>Max. volume: <span id="gainLabel">0.5</span></label>
+          <input id="gainMax" type="range" min="0" max="1" value="0.5" step="0.01">
+        </div>
+
+        <p class="small note">Tip: Het bestand moet via een <strong>beveiligde context</strong> (bijv. <code>https</code> of <code>http://localhost</code>) geopend worden voordat de camera werkt in moderne browsers. Start bijvoorbeeld lokaal een server met <code>python -m http.server</code> en navigeer naar <code>http://localhost:8000</code>.</p>
+      </section>
+    </div>
+
+    <details class="note">
+      <summary>Hoe werkt de detectie?</summary>
+      <p>Elke frame wordt de video verkleind en omgezet naar luminantie (helderheid). We berekenen een adaptieve drempel op basis van het <em>gemiddelde</em> en de <em>standaardafwijking</em> van de helderheid. Pixels die duidelijk helderder zijn dan de omgeving (boven <code>μ + k·σ</code>) tellen zwaarder mee in een zwaartepuntberekening. De verticale positie van dit zwaartepunt bepaalt de toonhoogte (boven = hoger). De horizontale positie bepaalt het volume (rechts = harder). De oscillator is een Web Audio <code>OscillatorNode</code> die via een <code>GainNode</code> naar de uitgang gaat; veranderingen worden vloeiend gemaakt met <code>setTargetAtTime</code>.</p>
+    </details>
+  </div>
+
+  <script>
+  (function(){
+    const video = document.getElementById('video');
+    const view = document.getElementById('view');
+    const ctx = view.getContext('2d', { alpha: false });
+
+    // Offscreen canvas voor analyse (kleiner = sneller)
+    const proc = document.createElement('canvas');
+    const pctx = proc.getContext('2d', { willReadFrequently: true });
+
+    const barY = document.getElementById('barY');
+    const barX = document.getElementById('barX');
+    const readout = document.getElementById('readout');
+
+    // UI
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn  = document.getElementById('stopBtn');
+    const calBtn   = document.getElementById('calBtn');
+
+    const minFreqEl = document.getElementById('minFreq');
+    const maxFreqEl = document.getElementById('maxFreq');
+    const freqLabel = document.getElementById('freqLabel');
+
+    const smoothEl = document.getElementById('smooth');
+    const smoothLabel = document.getElementById('smoothLabel');
+
+    const threshEl = document.getElementById('threshK');
+    const thrLabel = document.getElementById('thrLabel');
+
+    const gainMaxEl = document.getElementById('gainMax');
+    const gainLabel = document.getElementById('gainLabel');
+
+    function updateLabels(){
+      freqLabel.textContent = `${minFreqEl.value}–${maxFreqEl.value} Hz`;
+      smoothLabel.textContent = smoothEl.value;
+      thrLabel.textContent = Number(threshEl.value).toFixed(2);
+      gainLabel.textContent = Number(gainMaxEl.value).toFixed(2);
+    }
+    [minFreqEl, maxFreqEl, smoothEl, threshEl, gainMaxEl].forEach(el => el.addEventListener('input', updateLabels));
+    updateLabels();
+
+    // Audio
+    let ac = null, osc = null, gain = null;
+
+    function setupAudio(){
+      if (ac) return;
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      osc = ac.createOscillator();
+      osc.type = 'sine';
+      gain = ac.createGain();
+      gain.gain.value = 0.0; // start stil
+      osc.connect(gain).connect(ac.destination);
+      osc.start();
+    }
+
+    // Video/camera
+    let stream = null;
+
+    async function setupVideo(){
+      if (stream) return;
+      const constraints = { video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false };
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+      video.srcObject = stream;
+      await video.play();
+
+      // Stel canvas groottes in zodra we afmetingen kennen
+      const vw = video.videoWidth || 640;
+      const vh = video.videoHeight || 480;
+      view.width = vw; view.height = vh;
+
+      // Verklein voor verwerking (sneller), behoud aspect ratio
+      const scale = 0.25; // 25% van resolutie
+      proc.width = Math.max(128, Math.round(vw * scale));
+      proc.height = Math.max(96, Math.round(vh * scale));
+    }
+
+    // Detectie parameters
+    let threshK = 0.5; // aantal sigma boven gemiddelde
+
+    function analyzeFrame(){
+      // Teken naar offscreen kleine canvas
+      pctx.drawImage(video, 0, 0, proc.width, proc.height);
+      const { data, width, height } = pctx.getImageData(0, 0, proc.width, proc.height);
+
+      // Bereken luminantie array + statistiek
+      let sum = 0, sumSq = 0;
+      const len = width * height;
+      const luma = new Float32Array(len);
+      for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+        // Rec.709 luma
+        const Y = 0.2126 * data[i] + 0.7152 * data[i+1] + 0.0722 * data[i+2];
+        luma[j] = Y;
+        sum += Y; sumSq += Y*Y;
+      }
+      const mean = sum / len;
+      const variance = Math.max(0, (sumSq/len) - mean*mean);
+      const std = Math.sqrt(variance);
+      const thr = mean + threshK * std;
+
+      // Zwaartepunt van heldere pixels
+      let wsum = 0, xsum = 0, ysum = 0;
+      for (let y = 0, idx = 0; y < height; y++) {
+        for (let x = 0; x < width; x++, idx++) {
+          const Y = luma[idx];
+          if (Y > thr) { // boven drempel
+            const w = (Y - thr); // gewicht
+            wsum += w;
+            xsum += w * x;
+            ysum += w * y;
+          }
+        }
+      }
+
+      let found = wsum > 1e-3; // genoeg heldere pixels
+      let cx = width/2, cy = height/2; // default
+      if (found) {
+        cx = xsum / wsum;
+        cy = ysum / wsum;
+      }
+
+      // Toon visuele overlay (op schaal van view)
+      const vx = (cx / width) * view.width;
+      const vy = (cy / height) * view.height;
+      barX.style.left = `${(vx / view.width) * 100}%`;
+      barY.style.top = `${(vy / view.height) * 100}%`;
+
+      // Render verduisterde video met marker
+      ctx.save();
+      ctx.drawImage(video, 0, 0, view.width, view.height);
+      ctx.globalCompositeOperation = 'screen';
+      ctx.strokeStyle = found ? 'rgba(107,196,255,0.9)' : 'rgba(255,107,107,0.7)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(vx, vy, 16, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.restore();
+
+      return { found, cx, cy, width, height, mean, std, thr };
+    }
+
+    // Mapping helpers
+    function expoMap(norm, min, max){
+      // norm 0..1 -> exponentiële schaal tussen min en max (muzikaal prettiger)
+      const ratio = max / min;
+      return min * Math.pow(ratio, norm);
+    }
+
+    // Main loop
+    let rafId = null;
+    function loop(){
+      const res = analyzeFrame();
+      const { found, cx, cy, width, height, mean, std } = res;
+
+      // Normaliseer posities
+      const xn = cx / width;         // 0..1 (links->rechts)
+      const yn = cy / height;        // 0..1 (boven->onder)
+
+      // Bepaal doel-frequentie & -gain
+      const minF = Number(minFreqEl.value);
+      const maxF = Number(maxFreqEl.value);
+      const smoothMs = Number(smoothEl.value);
+      const tau = Math.max(0.001, smoothMs / 1000);
+
+      // Toonhoogte: boven = hoger (1 - yn)
+      const targetFreq = expoMap(1 - yn, minF, maxF);
+
+      // Volume: x-positie, maar 0 als geen doel gevonden
+      const maxGain = Number(gainMaxEl.value);
+      const targetGain = found ? (0.05 + 0.95 * xn) * maxGain : 0.0;
+
+      // Update audio vloeiend
+      if (ac && osc && gain) {
+        const t = ac.currentTime;
+        // Frequentie smoothing
+        try {
+          osc.frequency.setTargetAtTime(targetFreq, t, tau);
+        } catch (e) {
+          // Safari fallback
+          osc.frequency.value = targetFreq;
+        }
+        // Gain smoothing
+        try {
+          gain.gain.setTargetAtTime(targetGain, t, tau);
+        } catch (e) {
+          gain.gain.value = targetGain;
+        }
+      }
+
+      // HUD text
+      readout.textContent = `freq: ${targetFreq.toFixed(1)} Hz | vol: ${targetGain.toFixed(2)} | luminantie σ: ${std.toFixed(1)}`;
+
+      rafId = requestAnimationFrame(loop);
+    }
+
+    // Lifecycle
+    async function start(){
+      startBtn.disabled = true;
+      try {
+        await setupVideo();
+        setupAudio();
+        threshK = Number(threshEl.value);
+        if (ac.state === 'suspended') await ac.resume();
+        loop();
+        stopBtn.disabled = false;
+      } catch (err) {
+        alert('Kan camera of audio niet starten. Toestemming gegeven? Fout: ' + err);
+        console.error(err);
+        startBtn.disabled = false;
+      }
+    }
+
+    function stop(){
+      cancelAnimationFrame(rafId);
+      rafId = null;
+      if (ac && ac.state !== 'closed') {
+        ac.suspend();
+      }
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+      }
+      stopBtn.disabled = true;
+      startBtn.disabled = false;
+    }
+
+    function recalibrate(){
+      // Trigger eenmalige analyse om drempel te herijken op huidige scène
+      // In dit eenvoudige model volstaat het om threshK te laten staan; deze knop is informatief
+      // maar we kunnen hem gebruiken om de smoothing kort uit te zetten of gebruikers te attenderen.
+      // Hier zetten we niets speciaals; gebruiker kan slider gebruiken.
+      alert('Stel de gevoeligheid bij met de σ-schuif (lager = gevoeliger). Zorg voor een duidelijk, helderder object.');
+    }
+
+    // Events
+    startBtn.addEventListener('click', start);
+    stopBtn.addEventListener('click', stop);
+    calBtn.addEventListener('click', recalibrate);
+
+    threshEl.addEventListener('input', () => { threshK = Number(threshEl.value); });
+
+    // Cleanup bij tab sluiten
+    window.addEventListener('beforeunload', stop);
+  })();
+  </script>
+</body>
+</html>
