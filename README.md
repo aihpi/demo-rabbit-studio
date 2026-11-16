@@ -1,79 +1,80 @@
 <div style="background-color: #ffffff; color: #000000; padding: 10px;">
 <img src="00_aisc/img/logo_aisc_bmftr.jpg">
-<h1> Your title.
+<h1>RABBIT Studio</h1>
 </div>
 
-Your project description in two or three sentences: what it does, for whom, and what makes it worth a look.
+RABBIT Studio puts the browser instruments of the musician and teacher [Tom Tiest](https://www.iamarabbit.com/) into one application that runs in one Docker container. Tom built each instrument as a separate HTML file with an AI chatbot. This repository rebuilds them as one studio with one shared clock, as a teaching example for the workshop series [Rapid Prototyping via Vibe Coding](https://github.com/aihpi/workshop-rapid-prototyping).
+
+Status: planning. The application is not built yet. The plan will be added to this repository before the first line of application code.
 
 ![Screenshot of the application](00_aisc/img/screenshot_app.png)
 
-Replace `00_aisc/img/screenshot_app.png` with a screenshot of your application. Keep the image under the description so it is the first thing a visitor sees after the title; a 1280 by 720 PNG renders well on GitHub.
+The screenshot is the placeholder of the template. It will be replaced when the application runs (TBD).
 
 ## Features
 
-- **Key Feature 1**: A description of the Key features
-- **Key Feature 2**: A description of the Key features
+The studio will hold six instruments, each with every function of the HTML files it comes from.
+
+- A beat machine with a step sequencer, drum voices and sample loading.
+- A synth with a piano roll, a bass sequencer, filter and envelope.
+- A slicer that cuts a sample into slices and plays them from a sequencer.
+- A theremin that turns webcam input into pitch.
+- A metronome with a slot machine for random values.
+- A mix console with channels, equaliser, reverb send and a master bus.
+
+All instruments follow one transport, so they play in time without the wall-clock trick of the original files.
 
 ## Setup and Installation
 
 ### Prerequisites
 
-- Docker and Docker Compose
-- NVIDIA GPU with CUDA support (optional, but recommended for faster performance)
+- Docker and Docker Compose. The repository [workshop-getting-started](https://github.com/aihpi/workshop-getting-started) explains how to install them.
 
 ### Quick Start
 
 1. Clone the repository:
    ```bash
-   git clone ...
-   cd ...
+   git clone https://github.com/aihpi/demo-rabbit-studio.git
+   cd demo-rabbit-studio
    ```
 
-2. Run the setup or install dependencies:
-   ```bash
-   chmod +x setup.sh
-   ./setup.sh
-   ```
+2. Start the application: TBD, the application is not built yet.
 
-3. Access the application:
-   - Frontend: ...
-   - Backend API: ...
+3. Access the application: TBD.
 
 ## User Guide
 
 ### Using the Tool
-1. A brief description of using the tool.
-2. Be clear and simple.
+
+TBD, follows with the application.
 
 ### Recommendations
-Any additional hints for using the tool.
 
+TBD.
 
 ## Limitations
 
-- **Limitation 1**: List of Limitations
-- **Limitation 2**: List of Limitations
-
+- The repository holds no application code yet.
+- The studio runs on one computer. It does not synchronise several computers over the network.
 
 ## References
 
-- [Reference 1](https://hpi.de/kisz)
-- [Reference 2](https://hpi.de/kisz)
+- [Tom Tiest, I Am A Rabbit](https://www.iamarabbit.com/)
+- [Workshop Rapid Prototyping via Vibe Coding](https://github.com/aihpi/workshop-rapid-prototyping)
+- [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
 
 ## Author
-- [Your Name](https://hpi.de/kisz)
+
+- [Hanno Müller](https://hpi.de/kisz)
+- Instruments and design by [Tom Tiest](https://www.iamarabbit.com/)
 
 ## Issues and the project board
 
-`.github/workflows/add-issue-to-project.yml` adds every new issue to the [AIHPI project board](https://github.com/orgs/aihpi/projects/3). It needs a token in the secret `ADD_ISSUE_TO_PROJECT`, because the workflow's own `GITHUB_TOKEN` cannot write to organisation projects.
-
-- **Public repository**: nothing to do, the organisation-level secret is inherited.
-- **Private repository**: organisation secrets are not available to private repositories on the organisation's GitHub plan, so set the secret once after creating the repository. Ask an organisation admin for the token file, then run `gh secret set ADD_ISSUE_TO_PROJECT -R aihpi/<repository> < path/to/token-file`.
-
-Until the secret exists, the workflow fails on every new issue with `Input required and not supplied: github-token`. Nothing else is affected.
+`.github/workflows/add-issue-to-project.yml` adds every new issue to the [AIHPI project board](https://github.com/orgs/aihpi/projects/3). It needs a token in the secret `ADD_ISSUE_TO_PROJECT`, because the workflow's own `GITHUB_TOKEN` cannot write to organisation projects. This repository is public, so it inherits the organisation-level secret and nothing needs to be set.
 
 ## License
 
+This project is licensed under the MIT License. See [LICENSE](LICENSE).
 
 ---
 
